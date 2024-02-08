@@ -1,6 +1,7 @@
 
 MAX_PAGES = 8
 RECORD_COLUMNS = 4 # 4 constant columns for all tables (definey in lstore/table.py)
+NO_BYTES = 1
 
 class Page:
 
@@ -12,9 +13,16 @@ class Page:
         pass
 
     # outside of setup, exclusive to tail page
+    # unsure of the no. of bytes the value needs
     def write(self, value):
+        self.data.append(value.to_bytes(NO_BYTES, byteorder='big'))
         self.num_records += 1
         pass
+
+    def read(self, location):
+
+        value = int.from_bytes(self.data[location:(location + NO_BYTES)], byteorder='big')
+        return value
 
 class PageRange:
 
