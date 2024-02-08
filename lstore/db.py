@@ -29,7 +29,7 @@ class Database():
     # Deletes the specified table
     """
     def drop_table(self, name):
-        while i < len(self.tables)
+        while i < len(self.tables):
             if self.tables[i].name = name
                 del table[i]
                 pass
