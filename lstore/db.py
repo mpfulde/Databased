@@ -21,7 +21,7 @@ class Database():
     """
     def create_table(self, name, num_columns, key_index):
         table = Table(name, num_columns, key_index)
-        self.tables.add(table)
+        self.tables.insert(table)
         return table
 
     
@@ -29,7 +29,12 @@ class Database():
     # Deletes the specified table
     """
     def drop_table(self, name):
-        
+        while i < len(self.tables)
+            if self.tables[i].name = name
+                del table[i]
+                pass
+
+        print("no table of that name found")
         pass
 
     
@@ -40,4 +45,6 @@ class Database():
         for table in self.tables
             if table.name = name
                 return table
+
+        print("no table of that name found")
         pass
