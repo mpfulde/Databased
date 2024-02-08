@@ -50,15 +50,14 @@ class Query:
             #    cols.append(None)
             return False
 
-        record = Record(self.table.newRID(), cols[0], cols)
-
         try:
+            record = Record(self.table.newRID(), schema_encoding, cols[0], cols)
             self.table.writeRecord(record)
         except:
             print("Something went wrong please see exception list")
             return False
 
-        print("can only get here if write was successful")
+        # can only get here if write was successful
         return True
 
     
@@ -95,8 +94,26 @@ class Query:
     # Returns False if no records exist with given key or if the target record cannot be accessed due to 2PL locking
     """
     def update(self, primary_key, *columns):
-        pass
+        cols = list(columns)
 
+        try:
+            oldRecord = self.table.readRecord(self.table.getRIDFromKey(primary_key))
+            newSchema = oldRecord.schema_encoding
+            updatedColumns = oldRecord.columns
+            for i in range(len(cols)):
+                if not cols[i] == None:
+                    updatedColumns[i] = cols[i]
+                    newSchema[i] = '1'
+                else:
+                    newSchema[i] = '0'
+                    continue
+            updatedRecord = Record(self.table.newRID(), newSchema, primary_key, updatedColumns)
+            self.table.writeRecord(updatedRecord)
+        except:
+            print ("Something went wrong check exception")
+            return False
+
+        pass
     
     """
     :param start_range: int         # Start of the key range to aggregate 
