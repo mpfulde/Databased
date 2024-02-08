@@ -10,8 +10,9 @@ class Query:
     Any query that crashes (due to exceptions) should return False
     """
     def __init__(self, table):
+        
         self.table = table
-        pass
+        print(self.table.num_columns)
 
     
     """
@@ -30,8 +31,35 @@ class Query:
     # Returns False if insert fails for whatever reason
     """
     def insert(self, *columns):
+        print("attempting to insert")
+
         schema_encoding = '0' * self.table.num_columns
-        pass
+        
+        # converts columns to a list for ease of use
+        cols = list(columns)
+        print(self.table.num_columns)
+        print(self.table.name)
+
+        if len(cols) > self.table.num_columns:
+            print ("trying to insert too many columns")
+            return False
+
+        if len(cols) < self.table.num_columns:
+            print ("trying to insert too few columns")
+            # while len(cols) < self.table.num_columns:
+            #    cols.append(None)
+            return False
+
+        record = Record(self.table.newRID(), cols[0], cols)
+
+        try:
+            self.table.writeRecord(record)
+        except:
+            print("Something went wrong please see exception list")
+            return False
+
+        print("can only get here if write was successful")
+        return True
 
     
     """
