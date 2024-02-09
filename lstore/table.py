@@ -8,6 +8,7 @@ RID_COLUMN = 1
 TIMESTAMP_COLUMN = 2
 SCHEMA_ENCODING_COLUMN = 3
 
+MAX_PAGE_RANGE = 64  # max number of pages in page range (based off example exclusively)
 
 class Record:
 
@@ -38,6 +39,7 @@ class Table:
         self.name = name
         self.key = key
         self.num_columns = num_columns
+        self.num_records = 0
         self.page_ranges = [PageRange(num_columns)]
         self.page_directory = {}
         self.index = Index(self)
@@ -46,12 +48,24 @@ class Table:
     # does this one column at a time (will change later)
     def writeRecord(self, record):
         # grabs the current page range from the page range hashmap
-        page_range = self.page_directory[record.rid].get("page_range")
-        successful_write = self.page_ranges[page_range].write_record(record)
+        page_range_id = self.page_directory[record.rid].get("page_range")
+        page_range = self.page_ranges[page_range_id]
+        successful_write = page_range.write_record(record)
         return successful_write
 
     def newRID(self):
-        return 0
+        rid = self.num_records
+        self.num_records += 1
+
+        page_range_id = 0 # update with logic to find max page_range length (since everythings in memory less of an issue)
+        record_id = rid # update with logic for a particular page_range
+
+        self.page_directory[rid] = {
+            'page_range': page_range_id,
+            'record_id': record_id
+        }
+
+        return rid
 
     def getRIDFromKey(self, key):
         return key

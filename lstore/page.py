@@ -1,7 +1,7 @@
 from table import Record
 
-NO_BASE_PAGES = 4  # 4 constant columns for all tables (definey in lstore/table.py)
-NO_BYTES = 1
+NO_BASE_PAGES = 4  # 4 constant columns for all tables (defined in lstore/table.py)
+NO_BYTES = 8  # 64 bit integers so needing 8 bytes
 
 
 class Page:
@@ -38,6 +38,7 @@ class Page:
         req_data = self.data[space * NO_BYTES: (space * NO_BYTES + 8)]
         value = int.from_bytes(req_data, byteorder='big')
         return value
+
 
 class PageRange:
 
@@ -114,4 +115,3 @@ class PageRange:
 
         for page in self.TailPages:
             page.data.clear()
-
