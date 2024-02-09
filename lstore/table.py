@@ -56,5 +56,15 @@ class Table:
     def getRIDFromKey(self, key):
         return key
 
+    # clean up function so we dont lose memory
+    def delete_table(self):
+        for page_range in self.page_ranges:
+            page_range.BasePages.clear()
+            page_range.TailPages.clear()
+
+        self.page_ranges.clear()
+        self.page_directory.clear()
+
+
     def __merge(self):
         pass
