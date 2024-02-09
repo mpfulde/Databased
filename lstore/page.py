@@ -29,6 +29,16 @@ class Page:
         self.num_records += 1
         return True
 
+    """
+    :param name: space         #the space in memory of the first bit of the data you are reading
+    """
+
+    def read(self, space):
+        # grabs one full byte from the data
+        req_data = self.data[space * NO_BYTES: (space * NO_BYTES + 8)]
+        value = int.from_bytes(req_data, byteorder='big')
+        return value
+
 class PageRange:
 
     def __init__(self, num_columns):
