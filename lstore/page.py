@@ -27,10 +27,7 @@ class Page:
 
         self.data[self.num_records * NO_BYTES] = value.to_byte(NO_BYTES, 'big')
         self.num_records += 1
-        pass
-
-    # converts a record into a usable array to write to the data array
-
+        return True
 
 class PageRange:
 
@@ -43,7 +40,7 @@ class PageRange:
         # assigns the parent to
         self.TailPages = [Page()] * num_columns
 
-    def createNewBasePage(self, parent):
+    def createChildPage(self, parent):
         basePage = Page()
         basePage.parent = parent
         return basePage
@@ -51,6 +48,8 @@ class PageRange:
     def write_record(self, record):
         record_list = record.createList()
         successful_write = False
+
+        # attempts to write to base pages
         for i in range(NO_BASE_PAGES):
 
             if i >= NO_BASE_PAGES:
@@ -62,12 +61,36 @@ class PageRange:
             while self.BasePages[index].has_child():
                 index = self.BasePages[index].child_index
 
-            if not self.BasePages[i].has_capacity() and not self.BasePages[i].has_child():
-                self.BasePages[i].child_index = len(self.BasePages)
-                new_base = self.createNewBasePage(self.BasePages[i])
-                self.BasePages[i].child = new_base
+            if not self.BasePages[index].has_capacity() and not self.BasePages[index].has_child():
+                # smarter way to do this is to just set BasePages[i] to be the latest child and then recall through parents
+                # will implement at a later date (@someone yell at me to do it before the due date)
+                self.BasePages[index].child_index = len(self.BasePages)
+                new_base = self.createChildPage(self.BasePages[index])
+                self.BasePages[index].child = new_base
 
             successful_write = self.BasePages[index].write(record_list[i])
+
+            if not successful_write:
+                raise Exception("Something went wrong and it didnt happen in the write function")
+
+        # attempts to write to tail pages
+        for i in range(len(record.columns)):
+            if i >= len(self.TailPages):
+                raise Exception("Outside of allowed column space")
+
+            index = i
+
+            # gets the latest page (where there is no child)
+            while self.TailPages[index].has_child():
+                index = self.TailPages[index].child_index
+
+            if not self.TailPages[index].has_capacity() and not self.TailPages[index].has_child():
+                # smarter way to do this is the same as above
+                self.TailPages[index].child_index = len(self.BasePages)
+                new_tail = self.createChildPage(self.BasePages[index])
+                self.TailPages[index].child = new_tail
+
+            successful_write = self.TailPages[index].write(record_list[i])
 
             if not successful_write:
                 raise Exception("Something went wrong and it didnt happen in the write function")
