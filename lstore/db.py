@@ -20,8 +20,9 @@ class Database():
     :param key: int             #Index of table key in columns
     """
     def create_table(self, name, num_columns, key_index):
+        print("creating table named: " + name + "with num_cols: " + str(num_columns))
         table = Table(name, num_columns, key_index)
-        self.tables.insert(table)
+        self.tables.append(table)
         return table
 
     
@@ -29,9 +30,10 @@ class Database():
     # Deletes the specified table
     """
     def drop_table(self, name):
-        while i < len(self.tables):
-            if self.tables[i].name = name
-                del table[i]
+        for i in range(len(self.tables)):
+            if self.tables[i].name == name:
+                self.tables[i].delete_table()
+                self.tables.remove(self.tables[i])
                 pass
 
         print("no table of that name found")
@@ -42,8 +44,8 @@ class Database():
     # Returns table with the passed name
     """
     def get_table(self, name):
-        for table in self.tables
-            if table.name = name
+        for table in self.tables:
+            if table.name == name:
                 return table
 
         print("no table of that name found")
