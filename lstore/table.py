@@ -46,14 +46,18 @@ class Table:
         pass
 
     # does this one column at a time (will change later)
-    def writeRecord(self, record):
+    def write_record(self, record):
         # grabs the current page range from the page range hashmap
         page_range_id = self.page_directory[record.rid].get("page_range")
         page_range = self.page_ranges[page_range_id]
         successful_write = page_range.write_record(record)
         return successful_write
 
-    def newRID(self):
+    def read_record(self, rid):
+
+        pass
+
+    def new_rid(self):
         rid = self.num_records
         self.num_records += 1
 
@@ -67,7 +71,8 @@ class Table:
 
         return rid
 
-    def getRIDFromKey(self, key):
+    def get_rid_from_key(self, key):
+        self.key = key
         return key
 
     # clean up function so we dont lose memory

@@ -51,8 +51,8 @@ class Query:
             return False
 
         try:
-            record = Record(self.table.newRID(), schema_encoding, cols[0], cols)
-            self.table.writeRecord(record)
+            record = Record(self.table.new_rid(), schema_encoding, cols[0], cols)
+            self.table.write_record(record)
         except:
             print("Something went wrong please see exception list")
             return False
@@ -97,7 +97,7 @@ class Query:
         cols = list(columns)
 
         try:
-            oldRecord = self.table.readRecord(self.table.getRIDFromKey(primary_key))
+            oldRecord = self.table.readRecord(self.table.get_rid_from_key(primary_key))
             newSchema = oldRecord.schema_encoding
             updatedColumns = oldRecord.columns
             for i in range(len(cols)):
@@ -107,8 +107,8 @@ class Query:
                 else:
                     newSchema[i] = '0'
                     continue
-            updatedRecord = Record(self.table.newRID(), newSchema, primary_key, updatedColumns)
-            self.table.writeRecord(updatedRecord)
+            updatedRecord = Record(self.table.new_rid(), newSchema, primary_key, updatedColumns)
+            self.table.write_record(updatedRecord)
         except:
             print ("Something went wrong check exception")
             return False
