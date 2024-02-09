@@ -107,3 +107,11 @@ class PageRange:
 
         # if successful return True, if unsuccessful will throw exception
         return successful_write
+
+    def clear_data(self):
+        for page in self.BasePages:
+            page.data.clear()
+
+        for page in self.TailPages:
+            page.data.clear()
+

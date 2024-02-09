@@ -59,6 +59,7 @@ class Table:
     # clean up function so we dont lose memory
     def delete_table(self):
         for page_range in self.page_ranges:
+            page_range.clear_data()
             page_range.BasePages.clear()
             page_range.TailPages.clear()
 
