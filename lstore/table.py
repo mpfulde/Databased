@@ -12,6 +12,7 @@ SCHEMA_ENCODING_COLUMN = 3
 RECORDS_PER_PAGE = 4096 / 8  # 4kb / 8 byte ints
 MAX_PAGES = 16  # max number of pages in page range (based off example exclusively)
 
+
 class Record:
 
     def __init__(self, rid, schema_encoding, key, columns):
@@ -29,6 +30,7 @@ class Record:
         list[SCHEMA_ENCODING_COLUMN] = self.schema_encoding
         list[4:len(list)] = self.columns
         return list
+
 
 class Table:
     """
@@ -51,8 +53,9 @@ class Table:
     def write_record(self, record):
         # grabs the current page range from the page range hashmap
         page_range_id = self.page_directory[record.rid].get("page_range")
+        page = self.page_directory[record.rid].get("page")
         page_range = self.page_ranges[page_range_id]
-        successful_write = page_range.write_record(record)
+        successful_write = page_range.write_record(record, page)
         return successful_write
 
     def read_record(self, rid):
@@ -68,10 +71,9 @@ class Table:
 
         # gets the row we are on
         row = rid % (MAX_PAGES * RECORDS_PER_PAGE)
-        page = math.floor(row / (MAX_PAGES * RECORDS_PER_PAGE))
 
-        #
-
+        # gets the current page user is on
+        page = math.floor(row / (RECORDS_PER_PAGE))
 
         if page_range_id >= len(self.page_ranges):
             self.add_new_page_range()
@@ -97,7 +99,6 @@ class Table:
 
         self.page_ranges.clear()
         self.page_directory.clear()
-
 
     def __merge(self):
         pass
