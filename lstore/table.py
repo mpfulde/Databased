@@ -1,6 +1,7 @@
 from lstore.index import Index
 from lstore.page import Page, PageRange
 import datetime
+import math
 from time import time
 
 INDIRECTION_COLUMN = 0
@@ -8,7 +9,8 @@ RID_COLUMN = 1
 TIMESTAMP_COLUMN = 2
 SCHEMA_ENCODING_COLUMN = 3
 
-MAX_PAGE_RANGE = 64  # max number of pages in page range (based off example exclusively)
+RECORDS_PER_PAGE = 4096 / 8  # 4kb / 8 byte ints
+MAX_PAGES = 16  # max number of pages in page range (based off example exclusively)
 
 class Record:
 
@@ -61,12 +63,23 @@ class Table:
         rid = self.num_records
         self.num_records += 1
 
-        page_range_id = 0 # update with logic to find max page_range length (since everythings in memory less of an issue)
-        record_id = rid # update with logic for a particular page_range
+        # determines what page range we are on (i.e. if we are past the 16 page mark)
+        page_range_id = math.floor(rid / (MAX_PAGES * RECORDS_PER_PAGE))
+
+        # gets the row we are on
+        row = rid % (MAX_PAGES * RECORDS_PER_PAGE)
+        page = math.floor(row / (MAX_PAGES * RECORDS_PER_PAGE))
+
+        #
+
+
+        if page_range_id >= len(self.page_ranges):
+            self.add_new_page_range()
 
         self.page_directory[rid] = {
             'page_range': page_range_id,
-            'record_id': record_id
+            'row': row,
+            'page': page
         }
 
         return rid
@@ -87,4 +100,8 @@ class Table:
 
 
     def __merge(self):
+        pass
+
+    def add_new_page_range(self):
+        self.page_ranges.append(PageRange(self.num_records))
         pass
