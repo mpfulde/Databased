@@ -59,21 +59,35 @@ class Table:
         return successful_write
 
     def read_record(self, rid):
+        page_range_id = self.page_directory[rid].get("page_range")
+        page = self.page_directory[rid].get("page")
+        row = self.page_directory[rid].get("row")
+        page_range = self.page_ranges[page_range_id]
+        record = page_range.get_record(row, page)
+        return record
 
+    def delete_record(self, rid):
         pass
+    def update_record(self, rid):
+        page_range_id = self.page_directory[rid].get("page_range")
+        page = self.page_directory[rid].get("page")
+        row = self.page_directory[rid].get("row")
+
+        page_range = self.page_ranges[page_range_id]
+        successful_update = page_range.update_record(row, page)
 
     def new_rid(self):
         rid = self.num_records
         self.num_records += 1
 
-        # determines what page range we are on (i.e. if we are past the 16 page mark)
+        # determines what page range we are on (for example: if we are past the 16 page mark)
         page_range_id = math.floor(rid / (MAX_PAGES * RECORDS_PER_PAGE))
 
         # gets the row we are on
         row = rid % (MAX_PAGES * RECORDS_PER_PAGE)
 
         # gets the current page user is on
-        page = math.floor(row / (RECORDS_PER_PAGE))
+        page = math.floor(row / RECORDS_PER_PAGE)
 
         if page_range_id >= len(self.page_ranges):
             self.add_new_page_range()

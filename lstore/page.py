@@ -106,6 +106,12 @@ class PageRange:
         # if successful return True, if unsuccessful will throw exception
         return successful_write
 
+    def get_record(self, row, page):
+        pass
+
+    def update_record(self, row, page):
+        pass
+
     def clear_data(self):
         for page in self.BasePages:
             page.data.clear()
