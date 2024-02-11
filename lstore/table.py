@@ -22,9 +22,9 @@ class Record:
         self.key = key
         self.columns = columns
 
-    def createList(self):
+    def create_list(self):
         list = [None] * (len(self.columns) + 4)
-        list[INDIRECTION_COLUMN] = 1
+        list[INDIRECTION_COLUMN] = self.rid # indirection should point to itself by default
         list[RID_COLUMN] = self.rid
         list[TIMESTAMP_COLUMN] = self.timestamp
         list[SCHEMA_ENCODING_COLUMN] = self.schema_encoding
@@ -83,6 +83,7 @@ class Table:
 
         page_range = self.page_ranges[page_range_id]
         successful_update = page_range.update_record(row, page, record)
+        return successful_update
 
     def new_rid(self):
         rid = self.num_records
@@ -112,8 +113,11 @@ class Table:
         return rid
 
     def get_rid_from_key(self, key):
-        self.key = key
-        return key
+        rid = self.index.locate(self.key, key)
+
+        indirect_rid = self.get_indirected_rid(rid)  # gets the true rid from the indirection column
+
+        return indirect_rid
 
     # clean up function so we dont lose memory
     def delete_table(self):
@@ -131,3 +135,6 @@ class Table:
     def add_new_page_range(self):
         self.page_ranges.append(PageRange(self.num_records))
         pass
+
+    def get_indirected_rid(self, rid):
+        return rid
