@@ -10,7 +10,7 @@ class Query:
     Any query that crashes (due to exceptions) should return False
     """
     def __init__(self, table):
-        
+        self.num_updates = 0
         self.table = table
         print(self.table.num_columns)
 
@@ -90,7 +90,20 @@ class Query:
     # Assume that select will never be called on a key that doesn't exist
     """
     def select_version(self, search_key, search_key_index, projected_columns_index, relative_version):
-        pass
+        # version will be negative but its easier to deal with when positive
+        version = abs(relative_version)
+
+        # if version doesn't exist yet, we just want to deal with the latest (according to the tester)
+        if version > self.num_updates:
+            version = 0
+
+        if version is self.num_updates:
+            # logic for looking at values for base pages
+            result = self.table.get_base_columns(projected_columns_index)
+            return result
+
+        result = self.table.get_column_with_indirection(search_key, projected_columns_index, relative_version)
+        return result
 
     
     """

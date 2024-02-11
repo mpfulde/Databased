@@ -1,7 +1,7 @@
 from table import Record
 import math
 
-NO_BASE_PAGES = 4  # 4 constant columns for all tables (defined in lstore/table.py)
+NO_METADATA = 4  # 4 constant columns for all tables (defined in lstore/table.py)
 NO_BYTES = 8  # 64 bit integers so needing 8 bytes
 
 
@@ -52,7 +52,7 @@ class PageRange:
 
     def __init__(self, num_columns, indirection_col):
         # will regret later but for now just storing all base pages in a list its easier although slower
-        self.BasePages = [Page() for i in range(NO_BASE_PAGES)]
+        self.BasePages = [Page()] * (NO_METADATA + num_columns)
 
         self.indirection = indirection_col
 
@@ -62,6 +62,7 @@ class PageRange:
         # assigns the parent to
         self.TailPages = [Page()] * num_columns
 
+    # when inserting we are only dealing with base pages
     def write_record(self, record, page):
         record_list = record.create_list()
         successful_write = False
@@ -82,21 +83,9 @@ class PageRange:
         if self.BasePages[self.indirection] is -1:
             raise Exception("Accessing a deleted row")
 
-        # does the same check for tail pages
-        if page > self.tail_page_count:
-            for i in range(len(self.TailPages)):
-                if self.TailPages[i].has_capacity():
-                    raise Exception("told to make a new page when previous page has capacity")
-                else:
-                    new_tail = Page()
-                    new_tail.parent = self.BasePages[i]
-                    self.TailPages[i].child = new_tail
-                    self.TailPages[i] = new_tail
-                    self.tail_page_count += 1
-
         # attempts to write to base pages
-        for i in range(NO_BASE_PAGES):
-            if i >= NO_BASE_PAGES:
+        for i in range(NO_METADATA):
+            if i >= NO_METADATA:
                 raise Exception("Outside of allowed column space")
 
             successful_write = self.BasePages[i].write(record_list[i])
