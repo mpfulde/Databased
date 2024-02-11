@@ -102,18 +102,19 @@ class Query:
         cols = list(columns)
 
         try:
-            oldRecord = self.table.readRecord(self.table.get_rid_from_key(primary_key))
-            newSchema = oldRecord.schema_encoding
-            updatedColumns = oldRecord.columns
+            old_rid = self.table.get_row(primary_key)
+            old_record = self.table.readRecord(old_rid)
+            new_schema = old_record.schema_encoding
+            updated_columns = old_record.columns
             for i in range(len(cols)):
                 if not cols[i] == None:
-                    updatedColumns[i] = cols[i]
-                    newSchema[i] = '1'
+                    updated_columns[i] = cols[i]
+                    new_schema[i] = '1'
                 else:
-                    newSchema[i] = '0'
+                    new_schema[i] = '0'
                     continue
-            updatedRecord = Record(self.table.new_rid(), newSchema, primary_key, updatedColumns)
-            self.table.write_record(updatedRecord)
+            updated_record = Record(self.table.new_rid(), new_schema, primary_key, updated_columns)
+            self.table.update_record(old_rid, updated_record)
         except:
             print ("Something went wrong check exception")
             return False
