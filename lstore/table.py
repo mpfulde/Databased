@@ -4,7 +4,7 @@ import datetime
 import math
 from time import time
 
-INDIRECTION_COLUMN = 0
+INDIRECTION_COLUMN = 0 # VALUE SHOULD BE AN RID
 RID_COLUMN = 1
 TIMESTAMP_COLUMN = 2
 SCHEMA_ENCODING_COLUMN = 3
@@ -67,14 +67,22 @@ class Table:
         return record
 
     def delete_record(self, rid):
-        pass
-    def update_record(self, rid):
+        page_range_id = self.page_directory[rid].get("page_range")
+        page = self.page_directory[rid].get("page")
+        row = self.page_directory[rid].get("row")
+        page_range = self.page_ranges[page_range_id]
+
+        successful_delete = page_range.delete_record(row, page)
+
+        return successful_delete
+
+    def update_record(self, rid, record):
         page_range_id = self.page_directory[rid].get("page_range")
         page = self.page_directory[rid].get("page")
         row = self.page_directory[rid].get("row")
 
         page_range = self.page_ranges[page_range_id]
-        successful_update = page_range.update_record(row, page)
+        successful_update = page_range.update_record(row, page, record)
 
     def new_rid(self):
         rid = self.num_records
@@ -84,10 +92,13 @@ class Table:
         page_range_id = math.floor(rid / (MAX_PAGES * RECORDS_PER_PAGE))
 
         # gets the row we are on
-        row = rid % (MAX_PAGES * RECORDS_PER_PAGE)
+        row_in_range = rid % (MAX_PAGES * RECORDS_PER_PAGE)
 
         # gets the current page user is on
-        page = math.floor(row / RECORDS_PER_PAGE)
+        page = math.floor(row_in_range / RECORDS_PER_PAGE)
+
+        # gets the current row for the
+        row = row_in_range % RECORDS_PER_PAGE
 
         if page_range_id >= len(self.page_ranges):
             self.add_new_page_range()

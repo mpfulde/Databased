@@ -30,6 +30,12 @@ class Page:
         self.num_records += 1
         return True
 
+    def write_row(self, value, row):
+        if not self.has_capacity():
+            return False
+
+        self.data[row * NO_BYTES: (row * NO_BYTES + 8)] = value.to_byte(NO_BYTES, 'big')
+        return True
     """
     :param name: space         #the space in memory of the first bit of the data you are reading
     """
@@ -43,16 +49,17 @@ class Page:
 
 class PageRange:
 
-    def __init__(self, num_columns):
+    def __init__(self, num_columns, indirection_col):
         # will regret later but for now just storing all base pages in a list its easier although slower
         self.BasePages = [Page() for i in range(NO_BASE_PAGES)]
+
+        self.indirection = indirection_col
 
         self.base_page_count = 0
         self.tail_page_count = 0
 
         # assigns the parent to
         self.TailPages = [Page()] * num_columns
-
 
     def write_record(self, record, page):
         record_list = record.createList()
@@ -82,7 +89,6 @@ class PageRange:
                     self.TailPages[i] = new_tail
                     self.tail_page_count += 1
 
-
         # attempts to write to base pages
         for i in range(NO_BASE_PAGES):
             if i >= NO_BASE_PAGES:
@@ -109,7 +115,26 @@ class PageRange:
     def get_record(self, row, page):
         pass
 
-    def update_record(self, row, page):
+    def delete_record(self, row, page):
+
+        curr_page_num = self.base_page_count
+        curr_page = self.BasePages[self.indirection]
+        while curr_page_num is not page:
+            if self.BasePages[self.indirection].parent is not None and curr_page_num < 0:
+                raise Exception("Went past the page limit")
+
+            curr_page_num -= 1
+            curr_page = self.BasePages[self.indirection].parent
+
+        curr_page.write_row(-1, row)
+
+        return True
+
+    def update_record(self, row, page, record):
+
+
+
+
         pass
 
     def clear_data(self):
