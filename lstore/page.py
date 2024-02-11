@@ -47,6 +47,7 @@ class Page:
         return value
 
 
+
 class PageRange:
 
     def __init__(self, num_columns, indirection_col):
@@ -62,7 +63,7 @@ class PageRange:
         self.TailPages = [Page()] * num_columns
 
     def write_record(self, record, page):
-        record_list = record.createList()
+        record_list = record.create_list()
         successful_write = False
 
         # determine if we need ot make a new page
@@ -76,6 +77,10 @@ class PageRange:
                     self.BasePages[i].child = new_base
                     self.BasePages[i] = new_base
                     self.base_page_count += 1
+
+        # checks if randomly accessing a deleted row
+        if self.BasePages[self.indirection] is -1:
+            raise Exception("Accessing a deleted row")
 
         # does the same check for tail pages
         if page > self.tail_page_count:
@@ -131,11 +136,20 @@ class PageRange:
         return True
 
     def update_record(self, row, page, record):
+        curr_page_num = self.base_page_count
+        curr_page = self.BasePages[self.indirection]
+        while curr_page_num is not page:
+            if self.BasePages[self.indirection].parent is not None and curr_page_num < 0:
+                raise Exception("Went past the page limit")
 
+            curr_page_num -= 1
+            curr_page = self.BasePages[self.indirection].parent
 
+        successful_update = curr_page.write_row(record.rid, row)
 
+        successful_write = self.write_record(record, self.base_page_count)
 
-        pass
+        return successful_write and successful_update
 
     def clear_data(self):
         for page in self.BasePages:
