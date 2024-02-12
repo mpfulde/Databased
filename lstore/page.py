@@ -41,11 +41,19 @@ class Page:
     """
 
     def read(self, space):
-        # grabs one full byte from the data
+        # grabs one 64 bit data piece from the data array
         req_data = self.data[space * NO_BYTES: (space * NO_BYTES + 8)]
         value = int.from_bytes(req_data, byteorder='big')
         return value
 
+    def contains(self, value):
+        row = 0
+        while row is not (4096/NO_BYTES):
+            val = self.read(row)
+            if val is value:
+                return row
+
+        return -1
 
 
 class PageRange:
@@ -156,6 +164,7 @@ class PageRange:
                 raise Exception("Something went wrong and it didnt happen in the write function")
 
         return successful_write and successful_update
+
 
     def clear_data(self):
         for page in self.BasePages:
