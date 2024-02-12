@@ -157,9 +157,15 @@ class Query:
     """
     def sum_version(self, start_range, end_range, aggregate_column_index, relative_version):
         sum = 0
-        row = [1] * self.table.num_columns
 
-        pass
+        try:
+            columns = self.table.get_columns(start_range, end_range, aggregate_column_index, relative_version)
+            for i in range(len(columns)):
+                sum += columns[i]
+        except:
+            return False
+
+        return sum
 
     
     """
