@@ -5,6 +5,7 @@ from lstore.page import Page, PageRange
 A data strucutre holding indices for various columns of a table. Key column should be indexd by default, other columns can be indexed through this object. Indices are usually B-Trees, but other data structures can be used as well.
 """
 
+
 class Index:
 
     def __init__(self, table):
@@ -37,7 +38,26 @@ class Index:
     """
 
     def locate_range(self, begin, end, column):
-        pass
+
+        rid_list = []
+        pos = begin
+
+        for page_range in self.table.page_ranges:
+            base_page = page_range.BasePages[3]
+            while base_page is not None:
+                row = base_page.contains(pos)
+                if row is -1:
+                    base_page = base_page.child
+                else:
+                    rid = base_page.read(row)
+                    pos += 1
+                    if rid is end:
+                        rid_list.append(rid)
+                        break
+                    else:
+                        rid_list.append(rid)
+
+        return rid_list
 
     """
     # optional: Create index on specific column
