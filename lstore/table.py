@@ -194,3 +194,15 @@ class Table:
 
         record = self.read_record(rid, indirected)
         return record
+    def get_column_range(self, start, end, column, version):
+        rid_list = self.index.locate_range(start, end, column)
+
+        indirected_list = [False] * len(rid_list)
+
+        values_in_column = []
+
+        for i in range(len(rid_list)):
+            rid_list[i], indirected_list[i] = self.get_indirected_rid(rid_list[i], version)
+            values_in_column.append(self.read_record(rid_list[i], indirected_list[i]).columns[column])
+
+        return values_in_column
