@@ -22,7 +22,6 @@ class Index:
         for page_range in self.table.page_ranges:
             column_page = page_range.BasePages[column + 4]
             rid_page = page_range.BasePages[1]  # this will change with indexing
-            indirection_page = page_range.BasePages[0]
             while column_page is not None:
                 row = column_page.contains(value)
                 if row is -1:

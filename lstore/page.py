@@ -126,7 +126,32 @@ class PageRange:
 
         curr_page = self.base_page_count * page
 
-        successful_update = self.BasePages[curr_page + self.indirection].write_row(record.rid, row)
+        # writing to latest indirection point in tail pages if Base Page isnt latest
+        bp_indirect = self.BasePages[curr_page + self.indirection].read(row)
+        bp_rid = self.BasePages[curr_page + self.indirection + 1].read(row)
+        if bp_indirect is not bp_rid:
+            tail_id = self.TailPages[0]
+            tail_rid = self.TailPages[1]
+            tail_page = 0
+            row = -1
+            while bp_indirect is not bp_rid:
+                row = tail_rid.contains(bp_indirect)
+                if row is -1:
+                    if tail_rid.child is None:
+                        raise Exception("Unable to access latest data")
+                    tail_id = tail_id.child
+                    tail_rid = tail_rid.child
+                    page += 1
+                else:
+                    bp_indirect = tail_id.read(row)
+                    bp_rid = tail_rid.read(row)
+
+            if row is -1:
+                raise Exception("Unable to access latest data")
+            self.TailPages[(tail_page * self.tail_page_count) + self.indirection].write_row(record.rid, row)
+
+        else:
+            successful_update = self.BasePages[curr_page + self.indirection].write_row(record.rid, row)
 
         record_list = record.create_list()
         new_pages = []
