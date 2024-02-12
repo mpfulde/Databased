@@ -56,49 +56,40 @@ class PageRange:
 
         self.indirection = indirection_col
 
-        self.base_page_count = 0
-        self.tail_page_count = 0
+        self.base_page_count = (NO_METADATA + num_columns)
+        self.tail_page_count = (NO_METADATA + num_columns)
 
         # assigns the parent to
-        self.TailPages = [Page()] * num_columns
+        self.TailPages = [Page()] * (NO_METADATA + num_columns)
 
     # when inserting we are only dealing with base pages
     def write_record(self, record, page):
         record_list = record.create_list()
         successful_write = False
 
+        latest_page = self.base_page_count * page
+
         # determine if we need ot make a new page
-        if page > self.base_page_count:
-            for i in range(len(self.BasePages)):
-                if self.BasePages[i].has_capacity():
-                    raise Exception("told to make a new page when previous page has capacity")
-                else:
-                    new_base = Page()
-                    new_base.parent = self.BasePages[i]
-                    self.BasePages[i].child = new_base
-                    self.BasePages[i] = new_base
-                    self.base_page_count += 1
+        if latest_page > len(self.BasePages - 1):
+            for i in range(self.base_page_count):
+                if self.BasePages[i + latest_page - self.base_page_count].has_capacity():
+                    raise Exception("Trying to make a new page when previous page has capacity")\
+
+                new_page = Page()
+                self.BasePages[i + latest_page - self.base_page_count].child = new_page
+                new_page.parent = self.BasePages[i + latest_page - self.base_page_count]
+                self.BasePages.append(new_page)
 
         # checks if randomly accessing a deleted row
         if self.BasePages[self.indirection] is -1:
             raise Exception("Accessing a deleted row")
 
         # attempts to write to base pages
-        for i in range(NO_METADATA):
+        for i in range(self.base_page_count):
             if i >= NO_METADATA:
                 raise Exception("Outside of allowed column space")
 
-            successful_write = self.BasePages[i].write(record_list[i])
-
-            if not successful_write:
-                raise Exception("Something went wrong and it didnt happen in the write function")
-
-        # attempts to write to tail pages
-        for i in range(len(record.columns)):
-            if i >= len(self.TailPages):
-                raise Exception("Outside of allowed column space")
-
-            successful_write = self.TailPages[i].write(record_list[i])
+            successful_write = self.BasePages[i + latest_page].write(record_list[i])
 
             if not successful_write:
                 raise Exception("Something went wrong and it didnt happen in the write function")
@@ -111,32 +102,58 @@ class PageRange:
 
     def delete_record(self, row, page):
 
-        curr_page_num = self.base_page_count
-        curr_page = self.BasePages[self.indirection]
-        while curr_page_num is not page:
-            if self.BasePages[self.indirection].parent is not None and curr_page_num < 0:
-                raise Exception("Went past the page limit")
+        curr_page = self.base_page_count * page
 
-            curr_page_num -= 1
-            curr_page = self.BasePages[self.indirection].parent
+        if self.BasePages[curr_page + self.indirection] is None:
+            raise Exception("Trying to delete a none existant record")
 
-        curr_page.write_row(-1, row)
+        if self.BasePages[self.indirection + curr_page].parent is not None and curr_page < 0:
+            raise Exception("Went past the page limit")
 
-        return True
+        successful_write = self.BasePages[self.indirection + curr_page].write_row(-1, row)
+
+        return successful_write
 
     def update_record(self, row, page, record):
-        curr_page_num = self.base_page_count
-        curr_page = self.BasePages[self.indirection]
-        while curr_page_num is not page:
-            if self.BasePages[self.indirection].parent is not None and curr_page_num < 0:
-                raise Exception("Went past the page limit")
 
-            curr_page_num -= 1
-            curr_page = self.BasePages[self.indirection].parent
+        curr_page = self.base_page_count * page
 
-        successful_update = curr_page.write_row(record.rid, row)
+        successful_update = self.BasePages[curr_page + self.indirection].write_row(record.rid, row)
 
-        successful_write = self.write_record(record, self.base_page_count)
+        record_list = record.create_list()
+        new_pages = []
+        successful_write = False
+
+        # determine if we need ot make a new page
+        if not self.TailPages[-1].has_capacity():
+            for i in range(self.tail_page_count):
+                if self.BasePages[i - self.base_page_count].has_capacity():
+                    raise Exception("Trying to make a new page when previous page has capacity") \
+
+                new_page = Page()
+                # gets each last page for each column
+                self.TailPages[i - self.tail_page_count].child = new_page
+                new_page.parent = self.TailPages[i - self.tail_page_count - 1]
+                new_pages.append(new_page)
+
+        # adds new tail pages to the tail page list (so we dont append while creating new pages)
+        if len(new_pages) > 0:
+            for page in new_pages:
+                self.TailPages.append(page)
+
+        # checks if randomly accessing a deleted row
+        if self.TailPages[self.indirection] is -1:
+            raise Exception("Accessing a deleted row")
+
+        # attempts to write to base pages
+        for i in range(self.tail_page_count):
+            if i >= NO_METADATA:
+                raise Exception("Outside of allowed column space")
+
+            successful_write = self.TailPages[i - self.tail_page_count].write(record_list[i])
+
+            if not successful_write:
+                raise Exception("Something went wrong and it didnt happen in the write function")
 
         return successful_write and successful_update
 
