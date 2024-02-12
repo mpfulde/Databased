@@ -41,7 +41,7 @@ class Table:
 
     def __init__(self, name, num_columns, key):
         self.name = name
-        self.key = key
+        self.key = key + 4 # + 4 is for the 4 metadata columns
         self.num_columns = num_columns
         self.num_records = 0
         self.page_ranges = [PageRange(num_columns)]
@@ -112,10 +112,16 @@ class Table:
 
         return rid
 
-    def get_rid_from_key(self, key):
-        rid = self.index.locate(self.key, key)
+    def get_rid_from_key(self, search_key, column):
+        rid = self.index.locate(column, search_key)
 
-        indirect_rid = self.get_indirected_rid(rid)  # gets the true rid from the indirection column
+        return rid
+
+
+    def get_rid_from_key_version(self, search_key, column, version):
+        rid = self.index.locate(column, search_key)
+
+        indirect_rid = self.get_indirected_rid(rid, version)  # gets the true rid from the indirection column
 
         return indirect_rid
 
@@ -133,8 +139,52 @@ class Table:
         pass
 
     def add_new_page_range(self):
-        self.page_ranges.append(PageRange(self.num_records))
+        self.page_ranges.append(PageRange(self.num_records, INDIRECTION_COLUMN))
         pass
 
-    def get_indirected_rid(self, rid):
-        return rid
+    def get_indirected_rid(self, rid, version):
+        page_range_id = self.page_directory[rid].get("page_range")
+        page = self.page_directory[rid].get("page")
+        row = self.page_directory[rid].get("row")
+        id_rid = rid
+
+        if version is 0:
+            return id_rid
+
+        page_range = self.page_directory[page_range_id]
+
+        id_point = page_range.BasePages[page * page_range.base_page_count + INDIRECTION_COLUMN].read(row)
+        breakout = False
+        if id_point is not rid:
+            for page_range in self.page_ranges:
+                curr_page = page_range.TailPages[RID_COLUMN]
+                indirection_page = page_range.TailPages[INDIRECTION_COLUMN]
+                while curr_page is not None:
+                    row = curr_page.contains(id_point)
+                    if row is -1:
+                        if curr_page.child is None:
+                            raise Exception("No child found")
+                        curr_page = curr_page.child
+                        indirection_page = indirection_page.child
+                        continue
+
+                    if indirection_page.read(row) is not id_point:
+                        id_point = indirection_page.read(row)
+                        id_rid = id_point
+                        version += 1
+                        if version is 0:
+                            return id_rid
+                        curr_page = curr_page.child
+                        indirection_page = indirection_page.child
+                        continue
+                    else:
+                        id_rid = curr_page.read(row)
+                        return id_rid
+
+        return id_rid
+
+    def get_record(self, search_key, index, version):
+        rid = self.get_rid_from_key(search_key, index, version)
+
+        record = self.read_record(rid)
+        return record
