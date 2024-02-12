@@ -10,7 +10,7 @@ class Query:
     Any query that crashes (due to exceptions) should return False
     """
     def __init__(self, table):
-        self.num_updates = 0
+        self.max_depth = 0
         self.table = table
         print(self.table.num_columns)
 
@@ -90,20 +90,20 @@ class Query:
     # Assume that select will never be called on a key that doesn't exist
     """
     def select_version(self, search_key, search_key_index, projected_columns_index, relative_version):
-        # version will be negative but its easier to deal with when positive
-        version = abs(relative_version)
 
-        # if version doesn't exist yet, we just want to deal with the latest (according to the tester)
-        if version > self.num_updates:
-            version = 0
+        try:
+            record = self.table.get_record(search_key, search_key_index, relative_version)
+            record_list = record.create_list()
+            for i in range(len(projected_columns_index)):
+                if record_list[i + 4] is not None:
+                    record_list = record.create_list()
+                    projected_columns_index[i] = record_list[i + 4]
+        except:
+            print("Uh oh something went wrong")
+            return False
 
-        if version is self.num_updates:
-            # logic for looking at values for base pages
-            result = self.table.get_base_columns(projected_columns_index)
-            return result
 
-        result = self.table.get_column_with_indirection(search_key, projected_columns_index, relative_version)
-        return result
+        return projected_columns_index
 
     
     """
@@ -115,7 +115,7 @@ class Query:
         cols = list(columns)
 
         try:
-            old_rid = self.table.get_row(primary_key)
+            old_rid = self.table.get_rid_from_key(4, primary_key)
             old_record = self.table.readRecord(old_rid)
             new_schema = old_record.schema_encoding
             updated_columns = old_record.columns
@@ -156,6 +156,9 @@ class Query:
     # Returns False if no record exists in the given range
     """
     def sum_version(self, start_range, end_range, aggregate_column_index, relative_version):
+        sum = 0
+        row = [1] * self.table.num_columns
+
         pass
 
     
