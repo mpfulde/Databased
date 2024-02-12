@@ -59,7 +59,7 @@ class Query:
             record = Record(self.table.new_rid(), schema_encoding, cols[0], cols)
             self.table.write_record(record)
         except:
-            print("Something went wrong please see exception list")
+            print("Something went wrong – please see exception list")
             return False
 
         # can only get here if write was successful
@@ -76,7 +76,7 @@ class Query:
     # Assume that select will never be called on a key that doesn't exist
     """
     def select(self, search_key, search_key_index, projected_columns_index):
-        pass
+        return self.select_version(self, search_key, search_key_index, projected_columns_index, 0) # simply calls current version since no version is specified
 
     
     """
@@ -129,11 +129,11 @@ class Query:
             updated_record = Record(self.table.new_rid(), new_schema, primary_key, updated_columns)
             self.table.update_record(old_rid, updated_record)
         except:
-            print ("Something went wrong check exception")
+            print ("Something went wrong – check exception")
             return False
 
-        pass
-    
+        return True
+
     """
     :param start_range: int         # Start of the key range to aggregate 
     :param end_range: int           # End of the key range to aggregate 
@@ -143,7 +143,7 @@ class Query:
     # Returns False if no record exists in the given range
     """
     def sum(self, start_range, end_range, aggregate_column_index):
-        pass
+        return self.sum_version(self, start_range, end_range, aggregate_column_index, 0) # returns current version since no version specified
 
     
     """

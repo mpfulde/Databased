@@ -100,7 +100,7 @@ class PageRange:
             successful_write = self.BasePages[i + latest_page].write(record_list[i])
 
             if not successful_write:
-                raise Exception("Something went wrong and it didnt happen in the write function")
+                raise Exception("Something went wrong and it didn't happen in the write function")
 
         # if successful return True, if unsuccessful will throw exception
         return successful_write
@@ -113,7 +113,7 @@ class PageRange:
         curr_page = self.base_page_count * page
 
         if self.BasePages[curr_page + self.indirection] is None:
-            raise Exception("Trying to delete a none existant record")
+            raise Exception("Trying to delete a nonexistent record")
 
         if self.BasePages[self.indirection + curr_page].parent is not None and curr_page < 0:
             raise Exception("Went past the page limit")
