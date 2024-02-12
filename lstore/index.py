@@ -20,17 +20,18 @@ class Index:
 
     def locate(self, column, value):
         for page_range in self.table.page_ranges:
-            key_page = page_range.TailPages[self.indices[column]]
-            rid_page = page_range.BasePages[3]  # this will change with indexing
-            while key_page is not None:
-                for i in range(512):  # reads each row
-                    if key_page.read(i) is value:
-                        return rid_page.read(i)
-                    else:
-                        key_page = key_page.parent
-                        rid_page = rid_page.parent
+            column_page = page_range.BasePages[column + 4]
+            rid_page = page_range.BasePages[1]  # this will change with indexing
+            indirection_page = page_range.BasePages[0]
+            while column_page is not None:
+                row = column_page.contains(value)
+                if row is -1:
+                    column_page = column_page.child
+                    rid_page = rid_page.child
+                else:
+                    return rid_page.read(row)
 
-        pass
+        return -1
 
     """
     # Returns the RIDs of all records with values in column "column" between "begin" and "end"
