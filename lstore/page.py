@@ -1,4 +1,4 @@
-from table import Record
+from table import Record, record_from_list
 import math
 
 NO_METADATA = 4  # 4 constant columns for all tables (defined in lstore/table.py)
@@ -105,8 +105,39 @@ class PageRange:
         # if successful return True, if unsuccessful will throw exception
         return successful_write
 
-    def get_record(self, row, page):
-        pass
+    def get_record(self, rid, indirected):
+
+        record_list = []
+
+        if indirected:
+            page = 0
+            curr_page = self.TailPages[3]
+            while curr_page is not None:
+                row = curr_page.contains(rid)
+                if row is -1:
+                    curr_page = curr_page.child
+                    page += 1
+                else:
+                    break
+
+            for i in range(page * self.tail_page_count, page * self.tail_page_count + (self.tail_page_count - 1)):
+                record_list.append(self.TailPages[page * self.tail_page_count + i])
+
+        else:
+            page = 0
+            curr_page = self.BasePages[3]
+            while curr_page is not None:
+                row = curr_page.contains(rid)
+                if row is -1:
+                    curr_page = curr_page.child
+                    page += 1
+                else:
+                    break
+
+            for i in range(page * self.base_page_count, page * self.base_page_count + (self.base_page_count - 1)):
+                record_list.append(self.BasePages[page * self.base_page_count + i])
+
+        return record_from_list(record_list)
 
     def delete_record(self, row, page):
 
@@ -132,7 +163,7 @@ class PageRange:
         if bp_indirect is not bp_rid:
             tail_id = self.TailPages[0]
             tail_rid = self.TailPages[1]
-            tail_page = 0
+            tail_page = page
             row = -1
             while bp_indirect is not bp_rid:
                 row = tail_rid.contains(bp_indirect)
@@ -145,6 +176,10 @@ class PageRange:
                 else:
                     bp_indirect = tail_id.read(row)
                     bp_rid = tail_rid.read(row)
+                    tail_id = tail_id.child
+                    tail_rid = tail_rid.child
+                    if (bp_indirect is not bp_rid):
+                        page += 1
 
             if row is -1:
                 raise Exception("Unable to access latest data")

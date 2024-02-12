@@ -13,6 +13,12 @@ RECORDS_PER_PAGE = 4096 / 8  # 4kb / 8 byte ints
 MAX_PAGES = 16  # max number of pages in page range (based off example exclusively)
 
 
+def record_from_list(rlist):
+    record = Record(rlist[RID_COLUMN], rlist[SCHEMA_ENCODING_COLUMN], rlist[4], rlist[4:len(rlist)])
+    record.timestamp = rlist[TIMESTAMP_COLUMN]
+    return record
+
+
 class Record:
 
     def __init__(self, rid, schema_encoding, key, columns):
@@ -58,12 +64,12 @@ class Table:
         successful_write = page_range.write_record(record, page)
         return successful_write
 
-    def read_record(self, rid):
+    def read_record(self, rid, indirected):
         page_range_id = self.page_directory[rid].get("page_range")
         page = self.page_directory[rid].get("page")
         row = self.page_directory[rid].get("row")
         page_range = self.page_ranges[page_range_id]
-        record = page_range.get_record(row, page)
+        record = page_range.get_record(rid, indirected)
         return record
 
     def delete_record(self, rid):
@@ -121,9 +127,9 @@ class Table:
     def get_rid_from_key_version(self, search_key, column, version):
         rid = self.index.locate(column, search_key)
 
-        indirect_rid = self.get_indirected_rid(rid, version)  # gets the true rid from the indirection column
+        indirect_rid, indirected = self.get_indirected_rid(rid, version)  # gets the true rid from the indirection column
 
-        return indirect_rid
+        return indirect_rid, indirected
 
     # clean up function so we dont lose memory
     def delete_table(self):
@@ -149,7 +155,7 @@ class Table:
         id_rid = rid
 
         if version is 0:
-            return id_rid
+            return id_rid, False
 
         page_range = self.page_directory[page_range_id]
 
@@ -173,18 +179,18 @@ class Table:
                         id_rid = id_point
                         version += 1
                         if version is 0:
-                            return id_rid
+                            return id_rid, True
                         curr_page = curr_page.child
                         indirection_page = indirection_page.child
                         continue
                     else:
                         id_rid = curr_page.read(row)
-                        return id_rid
-
-        return id_rid
+                        return id_rid, True
+        else:
+            return id_rid, False
 
     def get_record(self, search_key, index, version):
-        rid = self.get_rid_from_key(search_key, index, version)
+        rid, indirected = self.get_rid_from_key_version(search_key, index, version)
 
-        record = self.read_record(rid)
+        record = self.read_record(rid, indirected)
         return record
