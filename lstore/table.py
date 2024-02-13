@@ -13,7 +13,7 @@ MAX_PAGES = 16  # max number of pages in page range (based off example exclusive
 
 
 def record_from_list(rlist):
-    record = Record(rlist[RID_COLUMN], rlist[SCHEMA_ENCODING_COLUMN], rlist[4], rlist[4:len(rlist)])
+    record = Record(rlist[RID_COLUMN], rlist[SCHEMA_ENCODING_COLUMN], rlist[4], rlist[4:(len(rlist))])
     record.timestamp = rlist[TIMESTAMP_COLUMN]
     return record
 
@@ -124,7 +124,9 @@ class Table:
     def get_rid_from_key_version(self, search_key, column, version):
         rid = self.index.locate(column, search_key)
 
-        indirect_rid, indirected = self.get_indirected_rid(rid, version)  # gets the true rid from the indirection column
+        # indirect_rid, indirected = self.get_indirected_rid(rid, version)  # gets the true rid from the indirection column
+
+        indirect_rid, indirected = 0, False
 
         return indirect_rid, indirected
 
