@@ -10,6 +10,7 @@ class Page:
     def __init__(self):
         self.num_records = 0
         self.data = bytearray(4096)
+        self.data[0: 4096] = (0).to_bytes(NO_BYTES, byteorder='big')
         # if we run out of space we want to have another page that links back to the original (in the same column)
         self.parent = None
         self.child = None
@@ -26,20 +27,23 @@ class Page:
         if not self.has_capacity():
             return False
 
-        print(value)
+        # print(value)
         if type(value) == bytes:
             self.data[self.num_records * NO_BYTES: (self.num_records * NO_BYTES + 8)] = value
+            # print(value)
         else:
-            self.data[self.num_records * NO_BYTES: (self.num_records * NO_BYTES + 8)] = value.to_bytes(NO_BYTES, "big")
+            self.data[self.num_records * NO_BYTES: (self.num_records * NO_BYTES + 8)] = value.to_bytes(NO_BYTES, byteorder='big')
+            # print(self.data[self.num_records * NO_BYTES: (self.num_records * NO_BYTES + 8)])
+            # print(value)
         self.num_records += 1
-        print(self.num_records)
+        # print(self.num_records)
         return True
 
     def write_row(self, value, row):
         if not self.has_capacity():
             return False
 
-        self.data[row * NO_BYTES: (row * NO_BYTES + 8)] = value.to_byte(NO_BYTES, 'big')
+        self.data[row * NO_BYTES: (row * NO_BYTES + 8)] = value.to_byte(NO_BYTES, byteorder='big')
         return True
     """
     :param name: space         #the space in memory of the first bit of the data you are reading
@@ -48,13 +52,15 @@ class Page:
     def read(self, space):
         # grabs one 64 bit data piece from the data array
         req_data = self.data[space * NO_BYTES: (space * NO_BYTES + 8)]
+        print(req_data)
+        print(space)
         value = int.from_bytes(req_data, byteorder='big')
         return value
 
     def contains(self, value):
-        row = 0
-        while row is not (4096/NO_BYTES):
+        for row in range(0, math.floor(4096/NO_BYTES)):
             val = self.read(row)
+            print(val)
             if val is value:
                 return row
 
@@ -64,17 +70,21 @@ class Page:
 class PageRange:
 
     def __init__(self, num_columns, indirection_col):
+
         # will regret later but for now just storing all base pages in a list its easier although slower
-        self.BasePages = [Page()] * (NO_METADATA + num_columns)
 
         self.indirection = indirection_col
 
         self.base_page_count = (NO_METADATA + num_columns)
         self.tail_page_count = (NO_METADATA + num_columns)
 
-        # assigns the parent to
-        self.TailPages = [Page()] * (NO_METADATA + num_columns)
+        self.BasePages = [None] * self.base_page_count
+        for i in range(0, self.base_page_count - 1):
+            self.BasePages[i] = Page()
 
+        self.TailPages = [None] * self.tail_page_count
+        for i in range(0, self.tail_page_count - 1):
+            self.TailPages[i] = Page()
     # when inserting we are only dealing with base pages
     def write_record(self, record, page):
         record_list = record.create_list()
@@ -102,10 +112,14 @@ class PageRange:
             if i >= self.base_page_count:
                 raise Exception("Outside of allowed column space")
 
-            successful_write = self.BasePages[i + latest_page].write(record_list[i])
+            if i is 3:
+                successful_write = self.BasePages[i + latest_page].write(0)
+            else:
 
-            if not successful_write:
-                raise Exception("Something went wrong and it didn't happen in the write function")
+                successful_write = self.BasePages[i + latest_page].write(record_list[i])
+                if i is 4:
+                    print(record_list[i])
+                    print(self.BasePages[i + latest_page].read(self.BasePages[i+latest_page].num_records - 1))
 
         # if successful return True, if unsuccessful will throw exception
         return successful_write

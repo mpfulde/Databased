@@ -37,7 +37,7 @@ class Query:
     # Returns False if insert fails for whatever reason
     """
     def insert(self, *columns):
-        print("attempting to insert")
+        # print("attempting to insert")
 
         schema_encoding = '0' * self.table.num_columns
         schema_encoding.encode()
@@ -99,8 +99,9 @@ class Query:
                 if record_list[i + 4] is not None:
                     record_list = record.create_list()
                     projected_columns_index[i] = record_list[i + 4]
-        except:
+        except Exception as e:
             print("Uh oh something went wrong")
+            print(e)
             return False
 
 
