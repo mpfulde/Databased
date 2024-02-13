@@ -66,6 +66,15 @@ class Page:
 
         return -1
 
+    def find_all(self, value):
+        row_list = []
+        for row in range(0, math.floor(4096)):
+            val = self.read(row)
+            # print(val)
+            if val == value:
+                row_list.append(row)
+
+        return row_list
 
 class PageRange:
 
@@ -131,7 +140,7 @@ class PageRange:
         if indirected:
             page = 0
             row = -1
-            curr_page = self.TailPages[3]
+            curr_page = self.TailPages[1]
             while curr_page is not None:
                 row = curr_page.contains(rid)
                 if row is -1:
@@ -145,7 +154,7 @@ class PageRange:
 
         else:
             page = 0
-            curr_page = self.BasePages[3]
+            curr_page = self.BasePages[1]
             row = 0
             while curr_page is not None:
                 row = curr_page.contains(rid)
@@ -155,7 +164,7 @@ class PageRange:
                 else:
                     break
 
-            for i in range(page * self.base_page_count, page * self.base_page_count + (self.base_page_count)):
+            for i in range(0, self.base_page_count):
                 record_list.append(self.BasePages[page * self.base_page_count + i].read(row))
 
         return record_list
