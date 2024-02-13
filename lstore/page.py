@@ -43,7 +43,11 @@ class Page:
         if not self.has_capacity():
             return False
 
-        self.data[row * NO_BYTES: (row * NO_BYTES + 8)] = value.to_byte(NO_BYTES, byteorder='big')
+        if row >= self.num_records:
+            return self.write(value)
+        # print(value.to_bytes(NO_BYTES, byteorder='big'))
+        self.data[row * NO_BYTES: (row * NO_BYTES + 8)] = value.to_bytes(NO_BYTES, byteorder='big')
+        # print(int.from_bytes(self.data[row * NO_BYTES: (row * NO_BYTES + 8)], byteorder='big'))
         return True
     """
     :param name: space         #the space in memory of the first bit of the data you are reading
@@ -91,9 +95,7 @@ class PageRange:
         for i in range(0, self.base_page_count - 1):
             self.BasePages[i] = Page()
 
-        self.TailPages = [Page()] * self.tail_page_count
-        for i in range(0, self.tail_page_count - 1):
-            self.TailPages[i] = Page()
+        self.TailPages = []
     # when inserting we are only dealing with base pages
     def write_record(self, record, page):
         record_list = record.create_list()
@@ -149,7 +151,7 @@ class PageRange:
                 else:
                     break
 
-            for i in range(page * self.tail_page_count, page * self.tail_page_count + (self.tail_page_count - 1)):
+            for i in range(0, self.tail_page_count):
                 record_list.append(self.TailPages[page * self.tail_page_count + i].read(row))
 
         else:
@@ -185,38 +187,37 @@ class PageRange:
 
     def update_record(self, row, page, record):
 
-        curr_page = self.base_page_count * page
-
+        if len(self.TailPages) == 0:
+            for i in range(0, self.tail_page_count):
+                self.TailPages.append(Page())
+        successful_update = False
         # writing to latest indirection point in tail pages if Base Page isnt latest
-        bp_indirect = self.BasePages[curr_page + self.indirection].read(row)
-        bp_rid = self.BasePages[curr_page + self.indirection + 1].read(row)
-        if bp_indirect is not bp_rid:
+        bp_indirect = self.BasePages[self.base_page_count * page + self.indirection].read(row)
+        bp_rid = self.BasePages[self.base_page_count * page + self.indirection + 1].read(row)
+        tail_page = 0
+        if bp_indirect != bp_rid:
             tail_id = self.TailPages[0]
             tail_rid = self.TailPages[1]
-            tail_page = page
             row = -1
-            while bp_indirect is not bp_rid:
+            while bp_indirect != bp_rid:
                 row = tail_rid.contains(bp_indirect)
                 if row is -1:
-                    if tail_rid.child is None:
-                        raise Exception("Unable to access latest data")
+                    if tail_id.child is None:
+                        raise Exception("No child found")
+
                     tail_id = tail_id.child
                     tail_rid = tail_rid.child
-                    page += 1
+                    tail_page += 1
                 else:
                     bp_indirect = tail_id.read(row)
                     bp_rid = tail_rid.read(row)
-                    tail_id = tail_id.child
-                    tail_rid = tail_rid.child
-                    if (bp_indirect is not bp_rid):
-                        page += 1
 
             if row is -1:
                 raise Exception("Unable to access latest data")
             self.TailPages[(tail_page * self.tail_page_count) + self.indirection].write_row(record.rid, row)
 
         else:
-            successful_update = self.BasePages[curr_page + self.indirection].write_row(record.rid, row)
+            successful_update = self.BasePages[self.base_page_count * page + self.indirection].write_row(record.rid, row)
 
         record_list = record.create_list()
         new_pages = []
@@ -245,10 +246,10 @@ class PageRange:
 
         # attempts to write to base pages
         for i in range(self.tail_page_count):
-            if i >= NO_METADATA:
+            if i >= self.tail_page_count:
                 raise Exception("Outside of allowed column space")
 
-            successful_write = self.TailPages[i - self.tail_page_count].write(record_list[i])
+            successful_write = self.TailPages[i + tail_page * self.tail_page_count].write(record_list[i])
 
             if not successful_write:
                 raise Exception("Something went wrong and it didnt happen in the write function")

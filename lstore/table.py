@@ -46,7 +46,7 @@ class Table:
 
     def __init__(self, name, num_columns, key):
         self.name = name
-        self.key = key + 4 # + 4 is for the 4 metadata columns
+        self.key = key
         self.num_columns = num_columns
         self.num_records = 0
         self.page_ranges = [PageRange(num_columns, INDIRECTION_COLUMN)]
@@ -102,7 +102,7 @@ class Table:
         page = math.floor(row_in_range / RECORDS_PER_PAGE)
 
         # gets the current row for the
-        row = row_in_range % RECORDS_PER_PAGE
+        row = math.floor(row_in_range % RECORDS_PER_PAGE)
 
         if page_range_id >= len(self.page_ranges):
             self.add_new_page_range()

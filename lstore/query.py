@@ -97,13 +97,19 @@ class Query:
         # try:
         record_list = self.table.get_records(search_key, search_key_index, relative_version)
 
-        version = 0
+        record_list.reverse()
+        while relative_version != 0:
+            record_list.pop(0)
+
+            relative_version += 1
+
         for i in range(len(projected_columns_index)):
-            projected_columns_index[i] = record_list[-1 + version]
-            if version == relative_version:
+            if i >= len(record_list):
                 break
 
-            version -= 1
+            projected_columns_index[i] = record_list[i]
+
+
 
         # except Exception as e:
         #     print("Uh oh something went wrong")
@@ -121,23 +127,25 @@ class Query:
     def update(self, primary_key, *columns):
         cols = list(columns)
 
-        try:
-            old_rid = self.table.get_rid_from_key(4, primary_key)
-            old_record = self.table.readRecord(old_rid)
-            new_schema = old_record.schema_encoding
-            updated_columns = old_record.columns
-            for i in range(len(cols)):
-                if not cols[i] == None:
-                    updated_columns[i] = cols[i]
-                    new_schema[i] = '1'
-                else:
-                    new_schema[i] = '0'
-                    continue
-            updated_record = Record(self.table.new_rid(), new_schema, primary_key, updated_columns)
-            self.table.update_record(old_rid, updated_record)
-        except:
-            print("Something went wrong – check exception")
-            return False
+        # try:
+        old_records = self.select(primary_key, self.table.key, [0])
+        old_records.reverse()
+        latest_update = old_records[0]
+        new_schema = latest_update.schema_encoding
+        updated_columns = latest_update.columns
+        for i in range(len(cols)):
+            if not cols[i] == None:
+                updated_columns[i] = cols[i]
+                # new_schema[i] = '1'
+            else:
+                # new_schema[i] = '0'
+                continue
+        updated_record = Record(self.table.new_rid(), new_schema, primary_key, updated_columns)
+        self.table.update_record(latest_update.rid, updated_record)
+        # except Exception as e:
+        #     print("Something went wrong – check exception")
+        #     print(e)
+        #     return False
 
         return True
 
@@ -151,8 +159,7 @@ class Query:
     """
 
     def sum(self, start_range, end_range, aggregate_column_index):
-        return self.sum_version(self, start_range, end_range, aggregate_column_index,
-                                0)  # returns current version since no version specified
+        return self.sum_version(self, start_range, end_range, aggregate_column_index, 0)  # returns current version since no version specified
 
     """
     :param start_range: int         # Start of the key range to aggregate 
