@@ -95,8 +95,15 @@ class Query:
     def select_version(self, search_key, search_key_index, projected_columns_index, relative_version):
 
         # try:
-        record = self.table.get_record(search_key, search_key_index, relative_version)
-        projected_columns_index[0] = record
+        record_list = self.table.get_records(search_key, search_key_index, relative_version)
+
+        version = 0
+        for i in range(len(projected_columns_index)):
+            projected_columns_index[i] = record_list[-1 + version]
+            if version == relative_version:
+                break
+
+            version -= 1
 
         # except Exception as e:
         #     print("Uh oh something went wrong")
