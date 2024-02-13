@@ -122,11 +122,18 @@ class Table:
 
 
     def get_rid_from_key_version(self, search_key, column, version):
-        rid = self.index.locate(column, search_key)
+        rid_list = self.index.locate(column, search_key)
 
         # indirect_rid, indirected = self.get_indirected_rid(rid, version)  # gets the true rid from the indirection column
 
-        indirect_rid, indirected = 0, False
+        indirect_list = []
+        for i in range(len(rid_list)):
+            if i == 0:
+                indirect_list.append(False)
+            else:
+                indirect_list.append(True)
+
+        indirect_rid, indirected = rid_list, indirect_list
 
         return indirect_rid, indirected
 
@@ -187,10 +194,12 @@ class Table:
         else:
             return id_rid, False
 
-    def get_record(self, search_key, index, version):
+    def get_records(self, search_key, index, version):
         rid, indirected = self.get_rid_from_key_version(search_key, index, version)
 
-        record = self.read_record(rid, indirected)
+        record = []
+        for i in range(len(rid)):
+            record.append(self.read_record(rid[i], indirected[i]))
         return record
     def get_column_range(self, start, end, column, version):
         rid_list = self.index.locate_range(start, end, column)

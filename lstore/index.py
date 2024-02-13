@@ -50,7 +50,7 @@ class Index:
                         rid_list.append(rid)
 
                     continue
-        return -1
+        return rid_list
 
     """
     # Returns the RIDs of all records with values in column "column" between "begin" and "end"
