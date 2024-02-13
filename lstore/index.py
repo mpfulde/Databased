@@ -19,17 +19,37 @@ class Index:
     """
 
     def locate(self, column, value):
+        print(value)
+        rid_list = []
         for page_range in self.table.page_ranges:
             column_page = page_range.BasePages[column + 4]
             rid_page = page_range.BasePages[1]  # this will change with indexing
             while column_page is not None:
                 row = column_page.contains(value)
+                print(row)
                 if row is -1:
                     column_page = column_page.child
                     rid_page = rid_page.child
                 else:
-                    return rid_page.read(row)
+                    # needs to check the tail pages too
+                    rid = rid_page.read(row)
+                    rid_list.append(rid)
+                    break
 
+            # checks tail pages if not found in the base pages
+            column_page = page_range.TailPages[column + 4]
+            rid_page = page_range.TailPages[1]
+            while column_page is not None:
+                row = column_page.find_all(value)
+                if len(row) == 0:
+                    column_page = column_page.child
+                    rid_page = rid_page.child
+                else:
+                    for r in row:
+                        rid = rid_page.read(r)
+                        rid_list.append(rid)
+
+                    continue
         return -1
 
     """
