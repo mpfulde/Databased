@@ -25,7 +25,8 @@ class Query:
         rid = self.table.get_rid_from_key(primary_key)
         try:
             self.table.delete_record(rid)
-        except:
+        except Exception as e:
+            print(e)
             return False
         return True
     
@@ -39,11 +40,10 @@ class Query:
         print("attempting to insert")
 
         schema_encoding = '0' * self.table.num_columns
-        
+        schema_encoding.encode()
+
         # converts columns to a list for ease of use
         cols = list(columns)
-        print(self.table.num_columns)
-        print(self.table.name)
 
         if len(cols) > self.table.num_columns:
             print ("trying to insert too many columns")
@@ -56,10 +56,11 @@ class Query:
             return False
 
         try:
-            record = Record(self.table.new_rid(), schema_encoding, cols[0], cols)
+            record = Record(self.table.new_rid(), schema_encoding.encode(), cols[0], cols)
             self.table.write_record(record)
-        except:
-            print("Something went wrong – please see exception list")
+        except Exception as e:
+            print("Something went wrong, please see exception list")
+            print(e)
             return False
 
         # can only get here if write was successful
@@ -76,7 +77,7 @@ class Query:
     # Assume that select will never be called on a key that doesn't exist
     """
     def select(self, search_key, search_key_index, projected_columns_index):
-        return self.select_version(self, search_key, search_key_index, projected_columns_index, 0) # simply calls current version since no version is specified
+        return self.select_version(search_key, search_key_index, projected_columns_index, 0) # simply calls current version since no version is specified
 
     
     """

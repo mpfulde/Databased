@@ -1,6 +1,5 @@
 from lstore.index import Index
 from lstore.page import Page, PageRange
-import datetime
 import math
 from time import time
 
@@ -23,7 +22,7 @@ class Record:
 
     def __init__(self, rid, schema_encoding, key, columns):
         self.rid = rid
-        self.timestamp = datetime.now()
+        self.timestamp = round(time())
         self.schema_encoding = schema_encoding
         self.key = key
         self.columns = columns
@@ -50,7 +49,7 @@ class Table:
         self.key = key + 4 # + 4 is for the 4 metadata columns
         self.num_columns = num_columns
         self.num_records = 0
-        self.page_ranges = [PageRange(num_columns)]
+        self.page_ranges = [PageRange(num_columns, INDIRECTION_COLUMN)]
         self.page_directory = {}
         self.index = Index(self)
         pass
@@ -66,11 +65,9 @@ class Table:
 
     def read_record(self, rid, indirected):
         page_range_id = self.page_directory[rid].get("page_range")
-        page = self.page_directory[rid].get("page")
-        row = self.page_directory[rid].get("row")
         page_range = self.page_ranges[page_range_id]
         record = page_range.get_record(rid, indirected)
-        return record
+        return record_from_list(record)
 
     def delete_record(self, rid):
         page_range_id = self.page_directory[rid].get("page_range")
@@ -145,7 +142,7 @@ class Table:
         pass
 
     def add_new_page_range(self):
-        self.page_ranges.append(PageRange(self.num_records, INDIRECTION_COLUMN))
+        self.page_ranges.append(PageRange(self.num_columns, INDIRECTION_COLUMN))
         pass
 
     def get_indirected_rid(self, rid, version):
@@ -160,7 +157,6 @@ class Table:
         page_range = self.page_directory[page_range_id]
 
         id_point = page_range.BasePages[page * page_range.base_page_count + INDIRECTION_COLUMN].read(row)
-        breakout = False
         if id_point is not rid:
             for page_range in self.page_ranges:
                 curr_page = page_range.TailPages[RID_COLUMN]

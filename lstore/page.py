@@ -1,5 +1,5 @@
-from table import Record, record_from_list
 import math
+
 
 NO_METADATA = 4  # 4 constant columns for all tables (defined in lstore/table.py)
 NO_BYTES = 8  # 64 bit integers so needing 8 bytes
@@ -26,8 +26,13 @@ class Page:
         if not self.has_capacity():
             return False
 
-        self.data[self.num_records * NO_BYTES] = value.to_byte(NO_BYTES, 'big')
+        print(value)
+        if type(value) == bytes:
+            self.data[self.num_records * NO_BYTES: (self.num_records * NO_BYTES + 8)] = value
+        else:
+            self.data[self.num_records * NO_BYTES: (self.num_records * NO_BYTES + 8)] = value.to_bytes(NO_BYTES, "big")
         self.num_records += 1
+        print(self.num_records)
         return True
 
     def write_row(self, value, row):
@@ -78,10 +83,10 @@ class PageRange:
         latest_page = self.base_page_count * page
 
         # determine if we need ot make a new page
-        if latest_page > len(self.BasePages - 1):
+        if latest_page > len(self.BasePages) - 1:
             for i in range(self.base_page_count):
-                if self.BasePages[i + latest_page - self.base_page_count].has_capacity():
-                    raise Exception("Trying to make a new page when previous page has capacity")\
+                # if self.BasePages[i + latest_page - self.base_page_count].has_capacity():
+                #     raise Exception("Trying to make a new page when previous page has capacity")\
 
                 new_page = Page()
                 self.BasePages[i + latest_page - self.base_page_count].child = new_page
@@ -89,12 +94,12 @@ class PageRange:
                 self.BasePages.append(new_page)
 
         # checks if randomly accessing a deleted row
-        if self.BasePages[self.indirection] is -1:
+        if self.BasePages[self.indirection] == (-1):
             raise Exception("Accessing a deleted row")
 
         # attempts to write to base pages
-        for i in range(self.base_page_count):
-            if i >= NO_METADATA:
+        for i in range(0, self.base_page_count - 1):
+            if i >= self.base_page_count:
                 raise Exception("Outside of allowed column space")
 
             successful_write = self.BasePages[i + latest_page].write(record_list[i])
@@ -137,7 +142,7 @@ class PageRange:
             for i in range(page * self.base_page_count, page * self.base_page_count + (self.base_page_count - 1)):
                 record_list.append(self.BasePages[page * self.base_page_count + i])
 
-        return record_from_list(record_list)
+        return record_list
 
     def delete_record(self, row, page):
 
