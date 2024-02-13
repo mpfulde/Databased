@@ -52,16 +52,16 @@ class Page:
     def read(self, space):
         # grabs one 64 bit data piece from the data array
         req_data = self.data[space * NO_BYTES: (space * NO_BYTES + 8)]
-        print(req_data)
-        print(space)
+        # print(req_data)
+        # print(space)
         value = int.from_bytes(req_data, byteorder='big')
         return value
 
     def contains(self, value):
         for row in range(0, math.floor(4096/NO_BYTES)):
             val = self.read(row)
-            print(val)
-            if val is value:
+            # print(val)
+            if val == value:
                 return row
 
         return -1
@@ -78,11 +78,11 @@ class PageRange:
         self.base_page_count = (NO_METADATA + num_columns)
         self.tail_page_count = (NO_METADATA + num_columns)
 
-        self.BasePages = [None] * self.base_page_count
+        self.BasePages = [Page()] * self.base_page_count
         for i in range(0, self.base_page_count - 1):
             self.BasePages[i] = Page()
 
-        self.TailPages = [None] * self.tail_page_count
+        self.TailPages = [Page()] * self.tail_page_count
         for i in range(0, self.tail_page_count - 1):
             self.TailPages[i] = Page()
     # when inserting we are only dealing with base pages
@@ -108,7 +108,7 @@ class PageRange:
             raise Exception("Accessing a deleted row")
 
         # attempts to write to base pages
-        for i in range(0, self.base_page_count - 1):
+        for i in range(0, self.base_page_count):
             if i >= self.base_page_count:
                 raise Exception("Outside of allowed column space")
 
@@ -117,9 +117,9 @@ class PageRange:
             else:
 
                 successful_write = self.BasePages[i + latest_page].write(record_list[i])
-                if i is 4:
-                    print(record_list[i])
-                    print(self.BasePages[i + latest_page].read(self.BasePages[i+latest_page].num_records - 1))
+                # if i is 4:
+                #     print(record_list[i])
+                #     print(self.BasePages[i + latest_page].read(self.BasePages[i+latest_page].num_records - 1))
 
         # if successful return True, if unsuccessful will throw exception
         return successful_write
@@ -130,6 +130,7 @@ class PageRange:
 
         if indirected:
             page = 0
+            row = -1
             curr_page = self.TailPages[3]
             while curr_page is not None:
                 row = curr_page.contains(rid)
@@ -140,11 +141,12 @@ class PageRange:
                     break
 
             for i in range(page * self.tail_page_count, page * self.tail_page_count + (self.tail_page_count - 1)):
-                record_list.append(self.TailPages[page * self.tail_page_count + i])
+                record_list.append(self.TailPages[page * self.tail_page_count + i].read(row))
 
         else:
             page = 0
             curr_page = self.BasePages[3]
+            row = 0
             while curr_page is not None:
                 row = curr_page.contains(rid)
                 if row is -1:
@@ -153,8 +155,8 @@ class PageRange:
                 else:
                     break
 
-            for i in range(page * self.base_page_count, page * self.base_page_count + (self.base_page_count - 1)):
-                record_list.append(self.BasePages[page * self.base_page_count + i])
+            for i in range(page * self.base_page_count, page * self.base_page_count + (self.base_page_count)):
+                record_list.append(self.BasePages[page * self.base_page_count + i].read(row))
 
         return record_list
 
