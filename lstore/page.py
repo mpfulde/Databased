@@ -33,7 +33,7 @@ class Page:
             # print(value)
         else:
             self.data[self.num_records * NO_BYTES: (self.num_records * NO_BYTES + 8)] = value.to_bytes(NO_BYTES,
-                                                                                                       byteorder='big')
+                                                                                                       byteorder='big', signed=True)
             # print(self.data[self.num_records * NO_BYTES: (self.num_records * NO_BYTES + 8)])
             # print(value)
         self.num_records += 1
@@ -47,7 +47,7 @@ class Page:
         if row >= self.num_records:
             return self.write(value)
         # print(value.to_bytes(NO_BYTES, byteorder='big'))
-        self.data[row * NO_BYTES: (row * NO_BYTES + 8)] = value.to_bytes(NO_BYTES, byteorder='big')
+        self.data[row * NO_BYTES: (row * NO_BYTES + 8)] = value.to_bytes(NO_BYTES, byteorder='big', signed=True)
         # print(int.from_bytes(self.data[row * NO_BYTES: (row * NO_BYTES + 8)], byteorder='big'))
         return True
 
@@ -60,7 +60,7 @@ class Page:
         req_data = self.data[space * NO_BYTES: (space * NO_BYTES + 8)]
         # print(req_data)
         # print(space)
-        value = int.from_bytes(req_data, byteorder='big')
+        value = int.from_bytes(req_data, byteorder='big', signed=True)
         return value
 
     def contains(self, value):
@@ -206,6 +206,7 @@ class PageRange:
             raise Exception("Went past the page limit")
 
         successful_write = self.BasePages[self.indirection + curr_page].write_row(-1, row)
+        successful_write = self.BasePages[1 + curr_page].write_row(-1, row)
 
         return successful_write
 

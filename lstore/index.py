@@ -40,7 +40,11 @@ class Index:
             if rid_list == -1:
                 continue
 
+
+
             tid_list = []
+            if column_page is None:
+                return rid_list, tid_list
             # gets all updates to the record with rid
             for i in range(len(column_page.TailPages)):
                 update_list = column_page.TailPages[i].find_all(value)
@@ -56,23 +60,23 @@ class Index:
 
     def locate_range(self, begin, end, column):
 
+        tid_list = []
         rid_list = []
-        pos = begin
-
         for page_range in self.table.page_ranges:
-            base_page = page_range.BasePages[1]
-            while base_page is not None:
-                row = base_page.contains(pos)
-                if row == -1:
-                    base_page = base_page.child
-                else:
-                    rid = base_page.read(row)
-                    pos += 1
-                    if rid == end:
-                        rid_list.append(rid)
-                        break
-                    else:
-                        rid_list.append(rid)
+            column_page = page_range.BasePages[column + 4]
+            rid_page = page_range.BasePages[1]  # this will change with indexing
+            while column_page is not None:
+                row = rid_page.contains(begin)
+
+            tid_list = []
+            # gets all updates to the record with rid
+            for i in range(len(column_page.TailPages)):
+                update_list = column_page.TailPages[i].find_all(value)
+                for j in range(len(update_list)):
+                    tid = rid_page.TailPages[i].read(update_list[j])
+                    tid_list.append(tid)
+
+        return rid_list, tid_list
 
         return rid_list
 

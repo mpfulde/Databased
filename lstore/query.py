@@ -23,12 +23,12 @@ class Query:
     """
 
     def delete(self, primary_key):
-        rid = self.table.get_rid_from_key(primary_key)
-        try:
-            self.table.delete_record(rid)
-        except Exception as e:
-            print(e)
-            return False
+        rid = self.table.get_rid_from_key(primary_key, self.table.key)
+        # try:
+        self.table.delete_record(rid[0])
+        # except Exception as e:
+            # print(e)
+            # return False
         return True
 
     """
@@ -157,7 +157,7 @@ class Query:
     """
 
     def sum(self, start_range, end_range, aggregate_column_index):
-        return self.sum_version(self, start_range, end_range, aggregate_column_index, 0)  # returns current version since no version specified
+        return self.sum_version(start_range, end_range, aggregate_column_index, 0)  # returns current version since no version specified
 
     """
     :param start_range: int         # Start of the key range to aggregate 
@@ -170,13 +170,21 @@ class Query:
     """
 
     def sum_version(self, start_range, end_range, aggregate_column_index, relative_version):
+
         sum = 0
 
+        # credit to jon for this solution
         try:
-            columns = self.table.get_columns(start_range, end_range, aggregate_column_index, relative_version)
-            for i in range(len(columns)):
-                sum += columns[i]
-        except:
+            values = []
+            for i in range(start_range, end_range + 1):
+                value = self.select_version(i, self.table.key, [0], relative_version)[0].columns[aggregate_column_index]
+                values.append(value)
+
+            for val in values:
+                sum += val
+
+        except Exception as e:
+            print(e)
             return False
 
         return sum
