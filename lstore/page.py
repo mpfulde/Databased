@@ -1,4 +1,5 @@
 import math
+import time
 
 NO_METADATA = 4  # 4 constant columns for all tables (defined in lstore/table.py)
 NO_BYTES = 8  # 64 bit integers so needing 8 bytes
@@ -110,6 +111,8 @@ class BasePage(Page):
             'page': page
         }
 
+        return tid
+
 
 class PageRange:
 
@@ -205,15 +208,36 @@ class PageRange:
 
         return successful_write
 
-    def update_record(self, row, page, updates):
+    def update_record(self, row, page, old_rid, updates):
 
+        successful_update = False
 
+        # creates tail pages if none exist
+        if len(self.BasePages[page * self.base_page_count].TailPages) == 0:
+            for i in range(0, self.base_page_count):
+                self.BasePages[page * self.base_page_count + i].TailPages.append(Page())
+
+        tid = self.BasePages[page * self.base_page_count + 1].new_tid()
+        tail_page = self.BasePages[page * self.base_page_count + 1].tail_directory[tid].get("page")
+
+        if self.BasePages[page * self.base_page_count + 1].read(row) == old_rid:
+            successful_update = self.BasePages[page * self.base_page_count + self.indirection].write_row(tid, row)
+        else:
+            old_row = self.BasePages[page * self.base_page_count + 1].tail_directory[old_rid].get("row")
+            old_page = self.BasePages[page * self.base_page_count + 1].tail_directory[old_rid].get("page")
+
+            successful_update = self.BasePages[page * self.base_page_count + self.indirection].TailPages[old_page].write_row(tid, old_row)
+
+        successful_write = self.BasePages[page * self.base_page_count].TailPages[tail_page].write(tid)
+        successful_write = successful_write and self.BasePages[page * self.base_page_count + 1].TailPages[tail_page].write(tid)
+        successful_write = successful_write and self.BasePages[page * self.base_page_count + 2].TailPages[tail_page].write(round(time.time()))
+        successful_write = successful_write and self.BasePages[page * self.base_page_count + 3].TailPages[tail_page].write(self.BasePages[page*self.base_page_count + 3])
+
+        for i in range(len(updates)):
+            successful_write = successful_write and self.BasePages[page * self.base_page_count + i + 4].TailPages[tail_page].write(updates[i])
 
         return successful_write and successful_update
 
     def clear_data(self):
         for page in self.BasePages:
-            page.data.clear()
-
-        for page in self.TailPages:
             page.data.clear()
