@@ -93,6 +93,8 @@ class Table:
 
     def update_record(self, rid, original, new_cols):
 
+        old_rid = rid
+
         if not original:
             rid = self.index.locate(self.key, new_cols[self.key])[0]
 
@@ -101,7 +103,7 @@ class Table:
         row = self.page_directory[rid].get("row")
 
         page_range = self.page_ranges[page_range_id]
-        successful_update = page_range.update_record(row, page, new_cols)
+        successful_update = page_range.update_record(row, page, old_rid, new_cols)
         return successful_update
 
     # new tail ID, rid for tail pages

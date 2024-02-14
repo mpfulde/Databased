@@ -42,10 +42,11 @@ class Index:
 
             tid_list = []
             # gets all updates to the record with rid
-            for tail in column_page.TailPages:
-                update_list = tail.find_all(value)
-                for i in range(len(update_list)):
-                    tid_list.append(update_list[i])
+            for i in range(len(column_page.TailPages)):
+                update_list = column_page.TailPages[i].find_all(value)
+                for j in range(len(update_list)):
+                    tid = rid_page.TailPages[i].read(update_list[j])
+                    tid_list.append(tid)
 
         return rid_list, tid_list
 

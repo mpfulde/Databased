@@ -96,10 +96,10 @@ class BasePage(Page):
         self.num_tails += 1
 
         # gets the current page user is on
-        page = math.floor(tid / round(4096 / NO_BYTES))
+        page = math.floor((tid - ((4096 / NO_BYTES) * 2)) / round(4096 / NO_BYTES))
 
         # gets the current row for the
-        row = math.floor(tid % round(4096 / NO_BYTES))
+        row = math.floor((tid - ((4096 / NO_BYTES) * 2)) % round(4096 / NO_BYTES))
 
         # adds a new tail page if not existant
         if page > len(self.TailPages):
@@ -179,10 +179,11 @@ class PageRange:
 
         updates = []
 
+        # print(len(update_list))
         if len(update_list) > 0:
             for tid in update_list:
-                tail_page = self.BasePages[page * self.base_page_count].tail_directory[tid].get("page")
-                tail_row = self.BasePages[page * self.base_page_count].tail_directory[tid].get("row")
+                tail_page = self.BasePages[page * self.base_page_count + 1].tail_directory[tid].get("page")
+                tail_row = self.BasePages[page * self.base_page_count + 1].tail_directory[tid].get("row")
 
                 for i in range(0, self.base_page_count):
                     updates.append(self.BasePages[page * self.base_page_count + i].TailPages[tail_page].read(tail_row))
@@ -228,10 +229,17 @@ class PageRange:
 
             successful_update = self.BasePages[page * self.base_page_count + self.indirection].TailPages[old_page].write_row(tid, old_row)
 
+        if tail_page > len(self.BasePages[page * self.base_page_count].TailPages) - 1:
+            for i in range(0, self.base_page_count):
+                new_tail = Page()
+                self.BasePages[page * self.base_page_count + i].TailPages[tail_page - 1].child = new_tail
+                new_tail.parent = self.BasePages[page * self.base_page_count + i].TailPages[tail_page - 1]
+                self.BasePages[page * self.base_page_count + i].TailPages.append(new_tail)
+
         successful_write = self.BasePages[page * self.base_page_count].TailPages[tail_page].write(tid)
         successful_write = successful_write and self.BasePages[page * self.base_page_count + 1].TailPages[tail_page].write(tid)
         successful_write = successful_write and self.BasePages[page * self.base_page_count + 2].TailPages[tail_page].write(round(time.time()))
-        successful_write = successful_write and self.BasePages[page * self.base_page_count + 3].TailPages[tail_page].write(self.BasePages[page*self.base_page_count + 3])
+        successful_write = successful_write and self.BasePages[page * self.base_page_count + 3].TailPages[tail_page].write(self.BasePages[page*self.base_page_count + 3].read(row))
 
         for i in range(len(updates)):
             successful_write = successful_write and self.BasePages[page * self.base_page_count + i + 4].TailPages[tail_page].write(updates[i])

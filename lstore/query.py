@@ -57,7 +57,7 @@ class Query:
             return False
 
         try:
-            record = Record(self.table.new_rid(), schema_encoding.encode(), cols[0], cols)
+            record = Record(self.table.new_rid(), schema_encoding.encode(), cols[0], cols, True)
             self.table.write_record(record)
         except Exception as e:
             print("Something went wrong, please see exception list")
@@ -95,7 +95,7 @@ class Query:
     def select_version(self, search_key, search_key_index, projected_columns_index, relative_version):
 
         # try:
-        record_list = self.table.get_records(search_key, search_key_index, relative_version)
+        record_list = self.table.get_records(search_key, search_key_index)
 
         record_list.reverse()
         while relative_version != 0:
@@ -129,19 +129,17 @@ class Query:
 
         # try:
         old_records = self.select(primary_key, self.table.key, [0])
-        old_records.reverse()
         latest_update = old_records[0]
         new_schema = latest_update.schema_encoding
         updated_columns = latest_update.columns
         for i in range(len(cols)):
-            if not cols[i] == None:
+            if cols[i] is not None:
                 updated_columns[i] = cols[i]
                 # new_schema[i] = '1'
             else:
                 # new_schema[i] = '0'
                 continue
-        updated_record = Record(self.table.new_rid(), new_schema, primary_key, updated_columns)
-        self.table.update_record(latest_update.rid, updated_record)
+        self.table.update_record(latest_update.rid, latest_update.original, updated_columns)
         # except Exception as e:
         #     print("Something went wrong – check exception")
         #     print(e)
