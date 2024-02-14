@@ -49,6 +49,7 @@ class Table:
         self.key = key
         self.num_columns = num_columns
         self.num_records = 0
+        self.tail_records = 1 #
         self.page_ranges = [PageRange(num_columns, INDIRECTION_COLUMN)]
         self.page_directory = {}
         self.index = Index(self)
@@ -63,11 +64,16 @@ class Table:
         successful_write = page_range.write_record(record, page)
         return successful_write
 
-    def read_record(self, rid, indirected):
+    def read_record(self, rid, tid_list):
         page_range_id = self.page_directory[rid].get("page_range")
         page_range = self.page_ranges[page_range_id]
-        record = page_range.get_record(rid, indirected)
-        return record_from_list(record)
+        page = self.page_directory[rid].get("page")
+        row = self.page_directory[rid].get("row")
+        records = page_range.get_record(row, page, tid_list)
+        record_list = []
+        for record in records:
+            record_list.append(record_from_list(record))
+        return record_list
 
     def delete_record(self, rid):
         page_range_id = self.page_directory[rid].get("page_range")
@@ -88,7 +94,12 @@ class Table:
         successful_update = page_range.update_record(row, page, record)
         return successful_update
 
+    # new tail ID, rid for tail pages
+    def new_tid(self, rid):
+        pass
+
     def new_rid(self):
+
         rid = self.num_records
         self.num_records += 1
 
@@ -116,26 +127,9 @@ class Table:
         return rid
 
     def get_rid_from_key(self, search_key, column):
-        rid = self.index.locate(column, search_key)
+        rid, tid_list = self.index.locate(column, search_key)
 
-        return rid
-
-
-    def get_rid_from_key_version(self, search_key, column, version):
-        rid_list = self.index.locate(column, search_key)
-
-        # indirect_rid, indirected = self.get_indirected_rid(rid, version)  # gets the true rid from the indirection column
-
-        indirect_list = []
-        for i in range(len(rid_list)):
-            if i == 0:
-                indirect_list.append(False)
-            else:
-                indirect_list.append(True)
-
-        indirect_rid, indirected = rid_list, indirect_list
-
-        return indirect_rid, indirected
+        return rid, tid_list
 
     # clean up function so we dont lose memory
     def delete_table(self):
@@ -194,12 +188,10 @@ class Table:
         else:
             return id_rid, False
 
-    def get_records(self, search_key, index, version):
-        rid, indirected = self.get_rid_from_key_version(search_key, index, version)
+    def get_records(self, search_key, index):
+        rid, tid_list = self.get_rid_from_key(search_key, index)
 
-        record = []
-        for i in range(len(rid)):
-            record.append(self.read_record(rid[i], indirected[i]))
+        record = self.read_record(rid, tid_list)
         return record
     def get_column_range(self, start, end, column, version):
         rid_list = self.index.locate_range(start, end, column)
