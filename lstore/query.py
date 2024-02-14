@@ -13,7 +13,7 @@ class Query:
     def __init__(self, table):
         self.max_depth = 0
         self.table = table
-        print(self.table.num_columns)
+        # print(self.table.num_columns)
 
     """
     # internal Method
