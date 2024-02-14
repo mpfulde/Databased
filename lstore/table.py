@@ -12,20 +12,21 @@ RECORDS_PER_PAGE = 4096 / 8  # 4kb / 8 byte ints
 MAX_PAGES = 16  # max number of pages in page range (based off example exclusively)
 
 
-def record_from_list(rlist):
-    record = Record(rlist[RID_COLUMN], rlist[SCHEMA_ENCODING_COLUMN], rlist[4], rlist[4:(len(rlist))])
+def record_from_list(rlist, original):
+    record = Record(rlist[RID_COLUMN], rlist[SCHEMA_ENCODING_COLUMN], rlist[4], rlist[4:(len(rlist))], original)
     record.timestamp = rlist[TIMESTAMP_COLUMN]
     return record
 
 
 class Record:
 
-    def __init__(self, rid, schema_encoding, key, columns):
+    def __init__(self, rid, schema_encoding, key, columns, original):
         self.rid = rid
         self.timestamp = round(time())
         self.schema_encoding = schema_encoding
         self.key = key
         self.columns = columns
+        self.original = original
 
     def create_list(self):
         list = [None] * (len(self.columns) + 4)
@@ -49,7 +50,6 @@ class Table:
         self.key = key
         self.num_columns = num_columns
         self.num_records = 0
-        self.tail_records = 1 #
         self.page_ranges = [PageRange(num_columns, INDIRECTION_COLUMN)]
         self.page_directory = {}
         self.index = Index(self)
@@ -65,14 +65,20 @@ class Table:
         return successful_write
 
     def read_record(self, rid, tid_list):
+        if rid == -1:
+            raise Exception("accessing unknown record")
+
         page_range_id = self.page_directory[rid].get("page_range")
         page_range = self.page_ranges[page_range_id]
         page = self.page_directory[rid].get("page")
         row = self.page_directory[rid].get("row")
         records = page_range.get_record(row, page, tid_list)
         record_list = []
-        for record in records:
-            record_list.append(record_from_list(record))
+        for i in range(0, len(records)):
+            if i == 0:
+                record_list.append(record_from_list(records[i], True))
+            else:
+                record_list.append(record_from_list(records[i], False))
         return record_list
 
     def delete_record(self, rid):
@@ -85,13 +91,17 @@ class Table:
 
         return successful_delete
 
-    def update_record(self, rid, record):
+    def update_record(self, rid, original, new_cols):
+
+        if not original:
+            rid = self.index.locate(self.key, new_cols[self.key])[0]
+
         page_range_id = self.page_directory[rid].get("page_range")
         page = self.page_directory[rid].get("page")
         row = self.page_directory[rid].get("row")
 
         page_range = self.page_ranges[page_range_id]
-        successful_update = page_range.update_record(row, page, record)
+        successful_update = page_range.update_record(row, page, new_cols)
         return successful_update
 
     # new tail ID, rid for tail pages
