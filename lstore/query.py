@@ -27,8 +27,8 @@ class Query:
         # try:
         self.table.delete_record(rid[0])
         # except Exception as e:
-            # print(e)
-            # return False
+        # print(e)
+        # return False
         return True
 
     """
@@ -96,8 +96,11 @@ class Query:
 
         # try:
         record_list = self.table.get_records(search_key, search_key_index)
-
         record_list.reverse()
+
+        if len(record_list) - 1 < -relative_version:
+            relative_version = -len(record_list) + 1
+
         while relative_version != 0:
             record_list.pop(0)
 
@@ -108,8 +111,6 @@ class Query:
                 break
 
             projected_columns_index[i] = record_list[i]
-
-
 
         # except Exception as e:
         #     print("Uh oh something went wrong")
@@ -157,7 +158,8 @@ class Query:
     """
 
     def sum(self, start_range, end_range, aggregate_column_index):
-        return self.sum_version(start_range, end_range, aggregate_column_index, 0)  # returns current version since no version specified
+        return self.sum_version(start_range, end_range, aggregate_column_index,
+                                0)  # returns current version since no version specified
 
     """
     :param start_range: int         # Start of the key range to aggregate 
@@ -174,18 +176,21 @@ class Query:
         sum = 0
 
         # credit to jon for this solution
-        try:
-            values = []
-            for i in range(start_range, end_range + 1):
+        values = []
+        for i in range(start_range, end_range + 1):
+            try:
                 value = self.select_version(i, self.table.key, [0], relative_version)[0].columns[aggregate_column_index]
                 values.append(value)
+            except Exception as e:
+                # print("value: ", i, " does not exist and will not be added to list")
+                continue
 
-            for val in values:
-                sum += val
+        for val in values:
+            sum += val
 
-        except Exception as e:
-            print(e)
-            return False
+        # except Exception as e:
+        # print(e)
+        # return False
 
         return sum
 
