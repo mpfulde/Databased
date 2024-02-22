@@ -1,15 +1,15 @@
-from lstore.table import Table, page_directory_from_file
+from lstore.table import Table, table_from_json
 from lstore.bufferpool import Bufferpool
 import pickle
 import os
+import json
 
 class Database:
 
     def __init__(self):
         self.tables = []
-        self.tables_data = {}
         self.bufferpool = None
-        self.path = None
+        self.root = None
         pass
 
     # Not required for milestone1
@@ -24,31 +24,38 @@ class Database:
                     tables_to_add = names.read().splitlines()
 
             for name in tables_to_add:
-                table_path = self.tables_data[name].get("table_path")
-                num_columns = self.tables_data[name].get("num_columns")
-                key = self.tables_data[name].get("key")
-                table = Table(name, num_columns, key)
-                with open(f"{table_path}/page_info.dat", "rb") as page_info:
+
+                table_json = open(f"{path}/{name}/table.json")
+                table = table_from_json(table_json["metadata"])
+
+
+                with open(f"{path}/{name}/page_info.dat", "rb") as page_info:
                     table.page_directory = pickle.load(page_info)
                 page_info.close()
 
-                with open(f"{table_path}/table_data.dat", "r") as table_data:
-                    table.reload_data(table_data)
-                table_data.close()
-
-                with open(f"{table_path}/index_data.dat", "rb") as index_data:
+                with open(f"{path}/{name}/index_data.dat", "rb") as index_data:
                     table.index = pickle.load(index_data)
                 index_data.close()
 
                 index = self.tables_data[name].get("index")
                 self.tables[index] = table
 
-        self.path = path
+        self.root = path
         self.bufferpool = Bufferpool(path)
 
 
     def close(self):
-        pass
+        with open(f"{self.root}/tables.txt", "w") as table_list:
+            table_list.write("\n".join(name for name in self.tables_data))
+        table_list.close()
+
+        # cleans up all the dirty bits and ensures a clean closing of the tables
+        self.bufferpool.close()
+
+        # writes all the table data to files
+        for table in self.tables:
+            path = f"{self.root}/{table.name}"
+            table.write_to_files(path)
 
     """
     # Creates a new table
