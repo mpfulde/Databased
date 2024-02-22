@@ -1,6 +1,6 @@
 from lstore.index import Index
 from lstore.page import Page, PageRange
-from lstore.bufferpool import Bufferpool
+# from lstore.bufferpool import Bufferpool
 import math
 from time import time
 
@@ -18,6 +18,9 @@ def record_from_list(rlist, original):
     record.timestamp = rlist[TIMESTAMP_COLUMN]
     return record
 
+def table_from_json(json):
+
+    pass
 
 class Record:
 
@@ -53,6 +56,7 @@ class Table:
         self.num_records = 0
         self.page_ranges = [PageRange(num_columns, INDIRECTION_COLUMN)]
         self.page_directory = {}
+        self.tail_directory = {}
         self.index = Index(self)
         pass
 
@@ -134,7 +138,8 @@ class Table:
         self.page_directory[rid] = {
             'page_range': page_range_id,
             'row': row,
-            'page': page
+            'page': page,
+            'tps': 0
         }
 
         return rid
@@ -206,6 +211,14 @@ class Table:
         record = self.read_record(rid, tid_list)
         return record
     def get_column_range(self, start, end, column):
+        pass
+
+    def reload_data(self, table_data):
+        data = {}
+        for line in table_data.values():
+            (key, value) = line.split()
+            data[key] = value
+
         pass
 
     def __merge(self):
