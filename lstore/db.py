@@ -25,9 +25,12 @@ class Database:
 
             for name in tables_to_add:
 
-                table_json = open(f"{path}/{name}/table.json")
-                table = table_from_json(table_json["metadata"])
+                table = None
 
+                with open(f"{path}/{name}/{name}_metadata.json", "rb") as metadata:
+                    table_json = json.load(metadata)
+                    table = table_from_json(table_json["metadata"])
+                metadata.close()
 
                 with open(f"{path}/{name}/page_info.dat", "rb") as page_info:
                     table.page_directory = pickle.load(page_info)
@@ -37,8 +40,7 @@ class Database:
                     table.index = pickle.load(index_data)
                 index_data.close()
 
-                index = self.tables_data[name].get("index")
-                self.tables[index] = table
+                self.tables.append(table)
 
         self.root = path
         self.bufferpool = Bufferpool(path)
