@@ -58,6 +58,8 @@ class Database:
         for table in self.tables:
             path = f"{self.root}/{table.name}"
             table.write_to_files(path)
+            self.drop_table(table.name)
+
 
     """
     # Creates a new table
