@@ -82,6 +82,19 @@ class Page:
 
         return row_list
 
+    # writes itself to a specific file path
+    def write_to_path(self, path):
+        file = open(path, "wb")
+        for i in range(self.num_records):
+            file.write(self.data[i:i + 8])
+        file.close()
+
+    def read_from_path(self, path):
+        file = open(path, "rb")
+        self.data = bytearray(file.read(4096))
+        file.close()
+
+
 
 class BasePage(Page):
     def __init__(self):
