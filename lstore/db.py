@@ -1,11 +1,13 @@
-from lstore.table import Table
+from lstore.table import Table, page_directory_from_file
 from lstore.bufferpool import Bufferpool
+import pickle
 import os
 
 class Database:
 
     def __init__(self):
         self.tables = []
+        self.tables_data = {}
         self.bufferpool = None
         self.path = None
         pass
@@ -15,9 +17,31 @@ class Database:
         if not os.path.exists(path):
             os.mkdir(path)
         else:
-            # repopulate indexes
-            # do other important stuff sadge
+            tables_to_add = []
+            file = f"{path}/tables.txt"
+            if os.path.exists(file):
+                with open(file, "r") as names:
+                    tables_to_add = names.read().splitlines()
 
+            for name in tables_to_add:
+                table_path = self.tables_data[name].get("table_path")
+                num_columns = self.tables_data[name].get("num_columns")
+                key = self.tables_data[name].get("key")
+                table = Table(name, num_columns, key)
+                with open(f"{table_path}/page_info.dat", "rb") as page_info:
+                    table.page_directory = pickle.load(page_info)
+                page_info.close()
+
+                with open(f"{table_path}/table_data.dat", "r") as table_data:
+                    table.reload_data(table_data)
+                table_data.close()
+
+                with open(f"{table_path}/index_data.dat", "rb") as index_data:
+                    table.index = pickle.load(index_data)
+                index_data.close()
+
+                index = self.tables_data[name].get("index")
+                self.tables[index] = table
 
         self.path = path
         self.bufferpool = Bufferpool(path)
