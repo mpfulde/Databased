@@ -1,5 +1,6 @@
 from lstore.index import Index
 from lstore.page import Page, PageRange
+from lstore.bufferpool import Bufferpool
 import math
 from time import time
 
@@ -153,8 +154,7 @@ class Table:
         self.page_ranges.clear()
         self.page_directory.clear()
 
-    def __merge(self):
-        pass
+
 
     def add_new_page_range(self):
         self.page_ranges.append(PageRange(self.num_columns, INDIRECTION_COLUMN))
@@ -206,4 +206,7 @@ class Table:
         record = self.read_record(rid, tid_list)
         return record
     def get_column_range(self, start, end, column):
+        pass
+
+    def __merge(self):
         pass
