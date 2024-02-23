@@ -25,8 +25,6 @@ class Database:
 
             for name in tables_to_add:
 
-                table = None
-
                 with open(f"{path}/{name}/{name}_metadata.json", "rb") as metadata:
                     table_json = json.load(metadata)
                     table = table_from_json(table_json["metadata"])

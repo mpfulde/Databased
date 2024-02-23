@@ -19,8 +19,10 @@ def record_from_list(rlist, original):
     return record
 
 def table_from_json(json):
+    table = Table(json['name'], json['num_columns'], json['key'])
+    table.num_records = json['num_records']
 
-    pass
+    return table
 
 class Record:
 
@@ -56,7 +58,6 @@ class Table:
         self.num_records = 0
         self.page_ranges = [PageRange(num_columns, INDIRECTION_COLUMN)]
         self.page_directory = {}
-        self.tail_directory = {}
         self.index = Index(self)
         pass
 
@@ -211,14 +212,6 @@ class Table:
         record = self.read_record(rid, tid_list)
         return record
     def get_column_range(self, start, end, column):
-        pass
-
-    def reload_data(self, table_data):
-        data = {}
-        for line in table_data.values():
-            (key, value) = line.split()
-            data[key] = value
-
         pass
 
     def __merge(self):
