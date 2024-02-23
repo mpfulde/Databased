@@ -129,19 +129,13 @@ class BasePage(Page):
 
 class PageRange:
 
-    def __init__(self, num_columns, indirection_col):
+    def __init__(self, num_columns):
 
         # will regret later but for now just storing all base pages in a list its easier although slower
 
-        self.indirection = indirection_col
-
         self.base_page_count = 1
         self.tail_page_count = 0
-
-        self.BasePages = [BasePage()] * self.base_page_count
-        for i in range(0, self.base_page_count - 1):
-            self.BasePages[i] = BasePage()
-
+        self.num_columns = num_columns
         self.tail_directory = {}
 
     def to_json(self):

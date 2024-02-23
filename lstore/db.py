@@ -27,7 +27,7 @@ class Database:
 
                     with open(f"{path}/{name}/table_data.json", "rb") as metadata:
                         table_json = json.load(metadata)
-                        table = table_from_json(table_json["metadata"])
+                        table = table_from_json(table_json)
                     metadata.close()
 
                     with open(f"{path}/{name}/page_info.dat", "rb") as page_info:

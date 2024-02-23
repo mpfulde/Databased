@@ -23,9 +23,27 @@ def record_from_list(rlist, original):
     return record
 
 
-def table_from_json(json):
-    table = Table(json['name'], json['num_columns'], json['key'], json['path'])
-    table.num_records = json['num_records']
+def table_from_json(json_):
+    metadata = json_["metadata"]
+    table = Table(metadata['name'], metadata['num_columns'], metadata['key'], metadata['path'])
+    table.num_records = metadata['num_records']
+
+    if len(json_) > 1:
+        table.page_ranges.clear()
+
+    for key in json_:
+
+        if key != "metadata":
+            if not os.path.exists(f"{metadata['path']}/{key}"):
+                os.mkdir(f"{metadata['path']}/{key}")
+
+            range_ = PageRange(metadata['num_columns'])
+            range_.base_page_count = json_[key]["base_page_count"]
+            range_.tail_page_count = json_[key]["tail_page_count"]
+            range_.tail_records = json_[key]["tail_directory"]
+            table.page_ranges.append(range_)
+
+            pass
 
     return table
 
@@ -41,13 +59,13 @@ class Record:
         self.original = original
 
     def create_list(self):
-        list = [None] * (len(self.columns) + 4)
-        list[INDIRECTION_COLUMN] = self.rid  # indirection should point to itself by default
-        list[RID_COLUMN] = self.rid
-        list[TIMESTAMP_COLUMN] = self.timestamp
-        list[SCHEMA_ENCODING_COLUMN] = self.schema_encoding
-        list[4:len(list)] = self.columns
-        return list
+        list_ = [None] * (len(self.columns) + 4)
+        list_[INDIRECTION_COLUMN] = self.rid  # indirection should point to itself by default
+        list_[RID_COLUMN] = self.rid
+        list_[TIMESTAMP_COLUMN] = self.timestamp
+        list_[SCHEMA_ENCODING_COLUMN] = self.schema_encoding
+        list_[4:len(list_)] = self.columns
+        return list_
 
 
 class Table:
@@ -63,7 +81,7 @@ class Table:
         self.num_columns = num_columns
         self.num_records = 0
         self.path = path
-        self.page_ranges = [PageRange(num_columns, INDIRECTION_COLUMN)]
+        self.page_ranges = [PageRange(num_columns)]
         self.page_directory = {}
         self.index = Index(self)
         pass
@@ -170,46 +188,6 @@ class Table:
     def add_new_page_range(self):
         self.page_ranges.append(PageRange(self.num_columns, INDIRECTION_COLUMN))
         pass
-
-    def get_indirected_rid(self, rid, version):
-        page_range_id = self.page_directory[rid].get("page_range")
-        page = self.page_directory[rid].get("page")
-        row = self.page_directory[rid].get("row")
-        id_rid = rid
-
-        if version is 0:
-            return id_rid, False
-
-        page_range = self.page_directory[page_range_id]
-
-        id_point = page_range.BasePages[page * page_range.base_page_count + INDIRECTION_COLUMN].read(row)
-        if id_point is not rid:
-            for page_range in self.page_ranges:
-                curr_page = page_range.TailPages[RID_COLUMN]
-                indirection_page = page_range.TailPages[INDIRECTION_COLUMN]
-                while curr_page is not None:
-                    row = curr_page.contains(id_point)
-                    if row is -1:
-                        if curr_page.child is None:
-                            raise Exception("No child found")
-                        curr_page = curr_page.child
-                        indirection_page = indirection_page.child
-                        continue
-
-                    if indirection_page.read(row) is not id_point:
-                        id_point = indirection_page.read(row)
-                        id_rid = id_point
-                        version += 1
-                        if version is 0:
-                            return id_rid, True
-                        curr_page = curr_page.child
-                        indirection_page = indirection_page.child
-                        continue
-                    else:
-                        id_rid = curr_page.read(row)
-                        return id_rid, True
-        else:
-            return id_rid, False
 
     def get_records(self, search_key, index):
         rid, tid_list = self.get_rid_from_key(search_key, index)
