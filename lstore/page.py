@@ -135,11 +135,24 @@ class PageRange:
 
         self.indirection = indirection_col
 
-        self.base_page_count = (NO_METADATA + num_columns)
+        self.base_page_count = 1
+        self.tail_page_count = 0
 
         self.BasePages = [BasePage()] * self.base_page_count
         for i in range(0, self.base_page_count - 1):
             self.BasePages[i] = BasePage()
+
+        self.tail_directory = {}
+
+    def to_json(self):
+        page_range_data = {
+            "base_page_count": self.base_page_count,
+            "tail_page_count": self.tail_page_count,
+            "tail_directory": self.tail_directory
+        }
+
+        return page_range_data
+
 
     # when inserting we are only dealing with base pages
     def write_record(self, record, page):

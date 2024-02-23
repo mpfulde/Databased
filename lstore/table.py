@@ -1,10 +1,14 @@
+import os.path
+import pickle
+import json
+
 from lstore.index import Index
 from lstore.page import Page, PageRange
 # from lstore.bufferpool import Bufferpool
 import math
 from time import time
 
-INDIRECTION_COLUMN = 0 # VALUE SHOULD BE AN RID
+INDIRECTION_COLUMN = 0  # VALUE SHOULD BE AN RID
 RID_COLUMN = 1
 TIMESTAMP_COLUMN = 2
 SCHEMA_ENCODING_COLUMN = 3
@@ -18,11 +22,13 @@ def record_from_list(rlist, original):
     record.timestamp = rlist[TIMESTAMP_COLUMN]
     return record
 
+
 def table_from_json(json):
-    table = Table(json['name'], json['num_columns'], json['key'])
+    table = Table(json['name'], json['num_columns'], json['key'], json['path'])
     table.num_records = json['num_records']
 
     return table
+
 
 class Record:
 
@@ -36,7 +42,7 @@ class Record:
 
     def create_list(self):
         list = [None] * (len(self.columns) + 4)
-        list[INDIRECTION_COLUMN] = self.rid # indirection should point to itself by default
+        list[INDIRECTION_COLUMN] = self.rid  # indirection should point to itself by default
         list[RID_COLUMN] = self.rid
         list[TIMESTAMP_COLUMN] = self.timestamp
         list[SCHEMA_ENCODING_COLUMN] = self.schema_encoding
@@ -51,11 +57,12 @@ class Table:
     :param key: int             #Index of table key in columns
     """
 
-    def __init__(self, name, num_columns, key):
+    def __init__(self, name, num_columns, key, path):
         self.name = name
         self.key = key
         self.num_columns = num_columns
         self.num_records = 0
+        self.path = path
         self.page_ranges = [PageRange(num_columns, INDIRECTION_COLUMN)]
         self.page_directory = {}
         self.index = Index(self)
@@ -155,12 +162,10 @@ class Table:
         for page_range in self.page_ranges:
             page_range.clear_data()
             page_range.BasePages.clear()
-            page_range.TailPages.clear()
+            # page_range.TailPages.clear()
 
         self.page_ranges.clear()
         self.page_directory.clear()
-
-
 
     def add_new_page_range(self):
         self.page_ranges.append(PageRange(self.num_columns, INDIRECTION_COLUMN))
@@ -211,7 +216,39 @@ class Table:
 
         record = self.read_record(rid, tid_list)
         return record
+
     def get_column_range(self, start, end, column):
+        pass
+
+    def write_to_files(self):
+        # does not write any pages to files, that is handled by bufferpool.py
+        if not os.path.exists(self.path):
+            os.mkdir(self.path)
+
+        table_data = {
+            "metadata": {
+                "name": self.name,
+                "num_columns": self.num_columns,
+                "num_records": self.num_records,
+                "key": self.key,
+                "path": self.path
+            }}
+
+        for i in range(len(self.page_ranges)):
+            table_data[i] = self.page_ranges[i].to_json()
+
+        table_data_file = open(f"{self.path}/table_data.json", "w")
+        json.dump(table_data, table_data_file)
+        table_data_file.close()
+
+        page_info = open(f"{self.path}/page_info.dat", "wb")
+        pickle.dump(self.page_directory, page_info)
+        page_info.close()
+
+        index_data = open(f"{self.path}/index_data.dat", "wb")
+        pickle.dump(self.index, index_data)
+        index_data.close()
+
         pass
 
     def __merge(self):

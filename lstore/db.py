@@ -23,22 +23,22 @@ class Database:
                 with open(file, "r") as names:
                     tables_to_add = names.read().splitlines()
 
-            for name in tables_to_add:
+                for name in tables_to_add:
 
-                with open(f"{path}/{name}/{name}_metadata.json", "rb") as metadata:
-                    table_json = json.load(metadata)
-                    table = table_from_json(table_json["metadata"])
-                metadata.close()
+                    with open(f"{path}/{name}/table_data.json", "rb") as metadata:
+                        table_json = json.load(metadata)
+                        table = table_from_json(table_json["metadata"])
+                    metadata.close()
 
-                with open(f"{path}/{name}/page_info.dat", "rb") as page_info:
-                    table.page_directory = pickle.load(page_info)
-                page_info.close()
+                    with open(f"{path}/{name}/page_info.dat", "rb") as page_info:
+                        table.page_directory = pickle.load(page_info)
+                    page_info.close()
 
-                with open(f"{path}/{name}/index_data.dat", "rb") as index_data:
-                    table.index = pickle.load(index_data)
-                index_data.close()
+                    with open(f"{path}/{name}/index_data.dat", "rb") as index_data:
+                        table.index = pickle.load(index_data)
+                    index_data.close()
 
-                self.tables.append(table)
+                    self.tables.append(table)
 
         self.root = path
         self.bufferpool = Bufferpool(path)
@@ -46,17 +46,18 @@ class Database:
 
     def close(self):
         with open(f"{self.root}/tables.txt", "w") as table_list:
-            table_list.write("\n".join(name for name in self.tables_data))
+            table_list.write("\n".join(table.name for table in self.tables))
         table_list.close()
 
-        # cleans up all the dirty bits and ensures a clean closing of the tables
-        self.bufferpool.close()
+
 
         # writes all the table data to files
         for table in self.tables:
-            path = f"{self.root}/{table.name}"
-            table.write_to_files(path)
+            table.write_to_files()
             self.drop_table(table.name)
+
+        # cleans up all the dirty bits and ensures a clean closing of the tables
+        self.bufferpool.close()
 
 
     """
@@ -67,10 +68,14 @@ class Database:
     """
 
     def create_table(self, name, num_columns, key_index):
-        # print("creating table named: " + name + "with num_cols: " + str(num_columns))
-        table = Table(name, num_columns, key_index)
-        self.tables.append(table)
-        return table
+        if not self.get_table(name):
+            # print("creating table named: " + name + "with num_cols: " + str(num_columns))
+            table = Table(name, num_columns, key_index, f"{self.root}/{name}")
+            self.tables.append(table)
+            return table
+        else:
+            print("table of that name already exists")
+            return self.get_table(name)
 
     """
     # Deletes the specified table
@@ -81,9 +86,8 @@ class Database:
             if self.tables[i].name == name:
                 self.tables[i].delete_table()
                 self.tables.remove(self.tables[i])
-                pass
+                break
 
-        print("no table of that name found")
         pass
 
     """
@@ -96,4 +100,4 @@ class Database:
                 return table
 
         print("no table of that name found")
-        pass
+        return False
