@@ -4,14 +4,12 @@ import json
 
 from lstore.index import Index
 from lstore.page import Page, PageRange
+from lstore.config import *
 # from lstore.bufferpool import Bufferpool
 import math
 from time import time
 
-INDIRECTION_COLUMN = 0  # VALUE SHOULD BE AN RID
-RID_COLUMN = 1
-TIMESTAMP_COLUMN = 2
-SCHEMA_ENCODING_COLUMN = 3
+
 
 RECORDS_PER_PAGE = 4096 / 8  # 4kb / 8 byte ints
 MAX_PAGES = 16  # max number of pages in page range (based off example exclusively)

@@ -1,23 +1,14 @@
 import math
 import time
-
-NO_METADATA = 4  # 4 constant columns for all tables (defined in lstore/table.py)
-NO_BYTES = 8  # 64 bit integers so needing 8 bytes
-
+from lstore.config import *
 
 class Page:
 
-    def __init__(self):
+    def __init__(self, name):
         self.num_records = 0
-        self.data = bytearray(4096)
-        self.data[0: 4096] = (0).to_bytes(NO_BYTES, byteorder='big')
+        self.data = bytearray(PAGE_SIZE)
         # if we run out of space we want to have another page that links back to the original (in the same column)
-        self.parent = None
-        self.child = None
-        self.child_index = 0
-
-    def has_child(self):
-        return self.child is not None
+        self.name = name
 
     # if there are more records than available bytes return False
     def has_capacity(self):
@@ -86,12 +77,15 @@ class Page:
     def write_to_path(self, path):
         file = open(path, "wb")
         for i in range(self.num_records):
-            file.write(self.data[i:i + 8])
+            file.write(self.data[i:i + NO_BYTES])
         file.close()
+
+        return True
 
     def read_from_path(self, path):
         file = open(path, "rb")
-        self.data = bytearray(file.read(4096))
+        self.data = bytearray(file.read(PAGE_SIZE))
+
         file.close()
 
 
