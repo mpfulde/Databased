@@ -1,3 +1,4 @@
+import ast
 import os.path
 import pickle
 import json
@@ -21,7 +22,8 @@ def record_from_list(rlist, original):
     return record
 
 
-def table_from_json(json_):
+def table_from_json(data):
+    json_ = ast.literal_eval(data)
     metadata = json_["metadata"]
     table = Table(metadata['name'], metadata['num_columns'], metadata['key'], metadata['path'])
     table.num_records = metadata['num_records']
@@ -177,7 +179,6 @@ class Table:
     def delete_table(self):
         for page_range in self.page_ranges:
             page_range.clear_data()
-            page_range.BasePages.clear()
             # page_range.TailPages.clear()
 
         self.page_ranges.clear()
@@ -214,7 +215,8 @@ class Table:
             table_data[i] = self.page_ranges[i].to_json()
 
         table_data_file = open(f"{self.path}/table_data.json", "w")
-        json.dump(table_data, table_data_file)
+        str_to_add = str(table_data)
+        table_data_file.write(str_to_add)
         table_data_file.close()
 
         page_info = open(f"{self.path}/page_info.dat", "wb")

@@ -25,8 +25,8 @@ class Database:
 
                 for name in tables_to_add:
 
-                    with open(f"{path}/{name}/table_data.json", "rb") as metadata:
-                        table_json = json.load(metadata)
+                    with open(f"{path}/{name}/table_data.json", "r") as metadata:
+                        table_json = metadata.read()
                         table = table_from_json(table_json)
                     metadata.close()
 
@@ -57,7 +57,7 @@ class Database:
             self.drop_table(table.name)
 
         # cleans up all the dirty bits and ensures a clean closing of the tables
-        self.bufferpool.close()
+        # self.bufferpool.close()
 
 
     """
@@ -84,7 +84,7 @@ class Database:
     def drop_table(self, name):
         for i in range(len(self.tables)):
             if self.tables[i].name == name:
-                self.tables[i].delete_table()
+                # self.tables[i].delete_table()
                 self.tables.remove(self.tables[i])
                 break
 
