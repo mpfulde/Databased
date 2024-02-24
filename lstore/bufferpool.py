@@ -91,6 +91,7 @@ class Bufferpool:
         index = oldest_use.pool_index
         self.pool.pop(oldest_index)
         del self.pool_directory[index]
+        self.pages_in_pool -= 1
 
         return True
 
@@ -98,6 +99,10 @@ class Bufferpool:
         return self.pages_in_pool < MAX_BUFFERPOOL_PAGES
 
     def close(self):
+        self.commit_pool()
+        while len(self.pool) > 0:
+            self.evict()
+
         pass
 
 
