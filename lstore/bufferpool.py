@@ -38,8 +38,17 @@ class Bufferpool:
 
         return False
 
-    def load_page_to_pool(self, table_name, page_range_id, page_range, num_columns, page, is_base):
-        page_range_path = f"{self.path}/{table_name}/{page_range_id}"
+    def get_pool_id(self, page, page_range, is_base):
+        key = (page, page_range, is_base)
+        for i in range(len(self.pool)):
+            if key == self.pool[i].pool_id:
+                return i
+
+        return False
+
+
+    def load_page_to_pool(self, path, page_range_id, page_range, num_columns, page, is_base):
+        page_range_path = f"{path}/{page_range_id}"
         if is_base:
             page_path = f"{page_range_path}/BasePages/{page}"
         else:

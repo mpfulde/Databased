@@ -84,6 +84,7 @@ class Table:
         self.page_ranges = [PageRange(num_columns)]
         self.page_directory = {}
         self.index = Index(self)
+        self.bufferpool = None
         pass
 
     # does this one column at a time (will change later)
@@ -92,8 +93,26 @@ class Table:
         page_range_id = self.page_directory[record.rid].get("page_range")
         page = self.page_directory[record.rid].get("page")
         page_range = self.page_ranges[page_range_id]
-        successful_write = page_range.write_record(record, page)
-        return successful_write
+
+        if not self.bufferpool.is_page_loaded(page_range_id, page, True):
+            self.bufferpool.load_page_to_pool(self.path, page_range_id, self.num_columns, page, True)
+
+        spot_in_pool = self.bufferpool.get_pool_id(page_range_id, page, True)
+
+        record_list = record.create_list()
+
+        try:
+            for i in range(len(record_list)):
+                self.bufferpool.pool[spot_in_pool].pages[i].write(record_list[i])
+        except Exception as e:
+            print(e)
+            return False
+
+        self.bufferpool.pool[spot_in_pool].dirty = True
+        self.bufferpool.pool[spot_in_pool].last_use = time()
+        self.bufferpool.pool[spot_in_pool].pin = False
+
+        return True
 
     def read_record(self, rid, tid_list):
         if rid == -1:
