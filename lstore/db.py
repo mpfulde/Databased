@@ -57,7 +57,7 @@ class Database:
             self.drop_table(table.name)
 
         # cleans up all the dirty bits and ensures a clean closing of the tables
-        # self.bufferpool.close()
+        self.bufferpool.close()
 
 
     """

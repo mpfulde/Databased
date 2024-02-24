@@ -38,7 +38,7 @@ class Bufferpool:
 
         return False
 
-    def load_base_page(self, table_name, page_range_id, page_range, num_columns, page, is_base):
+    def load_page_to_pool(self, table_name, page_range_id, page_range, num_columns, page, is_base):
         page_range_path = f"{self.path}/{table_name}/{page_range_id}"
         if is_base:
             page_path = f"{page_range_path}/BasePages/{page}"
@@ -58,15 +58,14 @@ class Bufferpool:
         new_pages.pages = base_pages
         new_pages.last_use = time.time()
 
-        self.pool.append(new_pages)
-
         index = (page, page_range_id, is_base)
         self.pool_directory[index] = {
             "index": index,
-            "lowest_RID": page * (PAGE_SIZE / NO_BYTES),
-            "highest_RID": page * (PAGE_SIZE / NO_BYTES) + 511,
             "is_base_page": is_base
         }
+
+        new_pages.pool_index = index
+        self.pool.append(new_pages)
         self.pages_in_pool += 1
 
         return index
@@ -78,10 +77,28 @@ class Bufferpool:
                 page.dirty = False
 
     def evict(self):
-        pass
+        # uses the lru eviction strategy
+        oldest_use = self.pool[0]
+        oldest_index = 0
+        for i in range(len(self.pool)):
+            if self.pool[i].last_use > oldest_use.last_use:
+                oldest_use = self.pool[i]
+                oldest_index = i
+
+        if oldest_use.dirty:
+            oldest_use.pool_to_file()
+
+        index = oldest_use.pool_index
+        self.pool.pop(oldest_index)
+        del self.pool_directory[index]
+
+        return True
 
     def has_capacity(self):
         return self.pages_in_pool < MAX_BUFFERPOOL_PAGES
+
+    def close(self):
+        pass
 
 
 # a loaded page into memory
@@ -93,6 +110,7 @@ class PagesInPool:
         self.dirty = False
         self.pinned = False
         self.last_use = 0  # gives a timestamp of last used time
+        self.pool_index = None
         self.path = None
 
     # Name of metadata column or Column number
