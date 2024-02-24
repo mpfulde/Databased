@@ -25,15 +25,15 @@ def get_batch_from_folder(page_path, num_columns):
 class Bufferpool:
     def __init__(self, path):
         self.path = path
-        self.pages = []
+        self.pool = []
         self.pages_in_pool = 0  #
-        self.pages_directory = {}  # holds different values from the on in table.py
+        self.pool_directory = {}  # holds different values from the on in table.py
         pass
 
     # returns false if record is not in the pool
     def is_page_loaded(self, page, page_range, is_base):
         key = (page, page_range, is_base)
-        if key in self.pages_directory:
+        if key in self.pool_directory:
             return True
 
         return False
@@ -58,10 +58,10 @@ class Bufferpool:
         new_pages.pages = base_pages
         new_pages.last_use = time.time()
 
-        self.pages.append(new_pages)
+        self.pool.append(new_pages)
 
         index = (page, page_range_id, is_base)
-        self.pages_directory[index] = {
+        self.pool_directory[index] = {
             "index": index,
             "lowest_RID": page * (PAGE_SIZE / NO_BYTES),
             "highest_RID": page * (PAGE_SIZE / NO_BYTES) + 511,
@@ -71,9 +71,11 @@ class Bufferpool:
 
         return index
 
-    def commit_page(self):
-
-        pass
+    def commit_pool(self):
+        for page in self.pool:
+            if page.dirty:
+                page.pool_to_file()
+                page.dirty = False
 
     def evict(self):
         pass
