@@ -31,11 +31,10 @@ class Bufferpool:
         pass
 
     # returns false if record is not in the pool
-    def is_page_loaded(self, rid):
-        for key in self.pages_directory:
-            if (self.pages_directory[key].get("lowest_rid") <= rid <= self.pages_directory[key].get("highest_rid") and
-                    self.pages_directory[key].get("is_base_page")):
-                return True
+    def is_page_loaded(self, page, page_range, is_base):
+        key = (page, page_range, is_base)
+        if key in self.pages_directory:
+            return True
 
         return False
 
@@ -61,7 +60,7 @@ class Bufferpool:
 
         self.pages.append(new_pages)
 
-        index = self.pages_in_pool
+        index = (page, page_range_id, is_base)
         self.pages_directory[index] = {
             "index": index,
             "lowest_RID": page * (PAGE_SIZE / NO_BYTES),
@@ -73,6 +72,7 @@ class Bufferpool:
         return index
 
     def commit_page(self):
+
         pass
 
     def evict(self):
