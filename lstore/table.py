@@ -40,6 +40,7 @@ def table_from_json(data):
             range_ = PageRange(metadata['num_columns'], f"{metadata['path']}/{key}")
             range_.base_page_count = json_[key]["base_page_count"]
             range_.tail_page_count = json_[key]["tail_page_count"]
+            range_.num_updates = json_[key]["num_updates"]
             range_.tail_directory = json_[key]["tail_directory"]
             table.page_ranges.append(range_)
 
@@ -85,7 +86,9 @@ class Table:
         self.page_directory = {}
         self.index = Index(self)
         self.bufferpool = None
-        # self.lock = threading.Lock()
+
+        self.lock = threading.Lock()
+        self.merge_thread = threading.Thread(target=self.__merge)
         pass
 
     # does this one column at a time (will change later)
@@ -215,6 +218,10 @@ class Table:
 
     def write_to_files(self):
         # does not write any pages to files, that is handled by bufferpool.py
+
+        self.lock = None
+        self.merge_thread = None
+
         if not os.path.exists(self.path):
             os.mkdir(self.path)
 
@@ -244,6 +251,13 @@ class Table:
         index_data.close()
 
         pass
+
+    def ready_to_merge(self, rid):
+        page_range_id = self.page_directory[rid].get("page_range_id")
+        page_range = self.page_ranges[page_range_id]
+        if page_range.num_updates % NUM_UPDATES_TO_MERGE == 0:
+            # tells to start merging
+            self.merge_thread.start()
 
     def __merge(self):
         pass

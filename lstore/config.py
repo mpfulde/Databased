@@ -12,6 +12,8 @@ BASE_RID_COLUMN = 2
 TIMESTAMP_COLUMN = 2
 SCHEMA_ENCODING_COLUMN = 3
 
+NUM_UPDATES_TO_MERGE = 20
+
 # Page
 PAGE_SIZE = 4096 # 4 kb
 NO_METADATA = 5  # 4 constant columns for all tables (defined in lstore/table.py)

@@ -95,23 +95,13 @@ class Page:
 
         file.close()
 
-
-class BasePage(Page):
-    def __init__(self):
-        super().__init__()
-        self.TailPages = []
-        self.num_tails = round(
-            4096 / NO_BYTES) * 2  # will always be 1 more than the allowed records in the page range as to not have conlficting ID's
-        self.tail_directory = {}  # similar system to the page_directory in table.py
-
-
 class PageRange:
 
     def __init__(self, num_columns, path):
 
         # will regret later but for now just storing all base pages in a list its easier although slower
         if not os.path.exists(path):
-            os.mkdir(f"{path}/")
+            os.makedirs(f"{path}")
             os.mkdir(f"{path}/BasePages")
             os.mkdir(f"{path}/TailPages")
 
@@ -125,6 +115,7 @@ class PageRange:
         page_range_data = {
             "base_page_count": self.base_page_count,
             "tail_page_count": self.tail_page_count,
+            "num_updates": self.num_updates,
             "tail_directory": self.tail_directory
         }
 
