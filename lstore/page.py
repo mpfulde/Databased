@@ -123,14 +123,14 @@ class PageRange:
 
     # new tail ID, rid for tail pages
     def new_tid(self, base_page):
-        tid = self.num_updates
+        tid = pow(2, 32) - self.num_updates
         self.num_updates += 1
 
         # gets the current page user is on
-        page = math.floor(tid / round(PAGE_SIZE / NO_BYTES))
+        page = math.floor(self.num_updates / round(PAGE_SIZE / NO_BYTES))
 
         # gets the current row for the
-        row = math.floor(tid % round(PAGE_SIZE / NO_BYTES))
+        row = math.floor(self.num_updates % round(PAGE_SIZE / NO_BYTES))
 
         self.tail_directory[tid] = {
             'row': row,

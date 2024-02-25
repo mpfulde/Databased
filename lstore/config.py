@@ -19,3 +19,5 @@ PAGE_SIZE = 4096 # 4 kb
 NO_METADATA = 5  # 4 constant columns for all tables (defined in lstore/table.py)
 NO_BYTES = 8  # 64 bit integers so needing 8 bytes
 
+# Index
+TREE_SIZE = 5
