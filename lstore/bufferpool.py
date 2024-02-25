@@ -12,11 +12,14 @@ def get_batch_from_folder(page_path, num_columns):
     pages = [Page("indirection"), Page("rid"), Page("base_rid"), Page("timestamp"), Page("schema_encoding")]
 
     for page in pages:
-        page.read_from_path(f"{page_path}/{page.name}.page")
+        if os.path.exists(f"{page_path}/{page.name}.page"):
+            page.read_from_path(f"{page_path}/{page.name}.page")
 
     for i in range(num_columns):
         page = Page(i)
-        page.read_from_path(f"{page_path}/column_{page.name}.page")
+        if os.path.exists(f"{page_path}/column_{page.name}.page"):
+            page.read_from_path(f"{page_path}/column_{page.name}.page")
+
         pages.append(page)
 
     return pages
@@ -25,29 +28,19 @@ def get_batch_from_folder(page_path, num_columns):
 class Bufferpool:
     def __init__(self, path):
         self.path = path
-        self.pool = []
+        self.pool = {}
         self.pages_in_pool = 0  #
-        self.pool_directory = {}  # holds different values from the on in table.py
         pass
 
     # returns false if record is not in the pool
     def is_page_loaded(self, page, page_range, is_base):
         key = (page, page_range, is_base)
-        if key in self.pool_directory:
+        if key in self.pool:
             return True
 
         return False
 
-    def get_pool_id(self, page, page_range, is_base):
-        key = (page, page_range, is_base)
-        for i in range(len(self.pool)):
-            if key == self.pool[i].pool_id:
-                return i
-
-        return False
-
-
-    def load_page_to_pool(self, path, page_range_id, page_range, num_columns, page, is_base):
+    def load_page_to_pool(self, path, page_range_id, num_columns, page, is_base):
         page_range_path = f"{path}/{page_range_id}"
         if is_base:
             page_path = f"{page_range_path}/BasePages/{page}"
@@ -65,41 +58,41 @@ class Bufferpool:
         # load basepages into pool
         base_pages = get_batch_from_folder(page_path, num_columns=num_columns)
         new_pages.pages = base_pages
+        new_pages.path = page_path
         new_pages.last_use = time.time()
-
         index = (page, page_range_id, is_base)
-        self.pool_directory[index] = {
+        new_pages.pool_index = index
+
+        self.pool[index] = {
             "index": index,
-            "is_base_page": is_base
+            "is_base_page": is_base,
+            "pages": new_pages
         }
 
-        new_pages.pool_index = index
-        self.pool.append(new_pages)
         self.pages_in_pool += 1
 
         return index
 
     def commit_pool(self):
         for page in self.pool:
-            if page.dirty:
-                page.pool_to_file()
-                page.dirty = False
+            if self.pool[page]["pages"].dirty:
+                self.pool[page]["pages"].pool_to_file()
+                self.pool[page]["pages"].dirty = False
 
     def evict(self):
         # uses the lru eviction strategy
-        oldest_use = self.pool[0]
-        oldest_index = 0
-        for i in range(len(self.pool)):
-            if self.pool[i].last_use > oldest_use.last_use:
-                oldest_use = self.pool[i]
-                oldest_index = i
+        oldest_use = self.pool[list(self.pool.keys())[0]]["pages"]
+        oldest_index = list(self.pool.keys())[0]
+
+        for index in self.pool:
+            if self.pool[index]["pages"].last_use < oldest_use.last_use:
+                oldest_index = index
+                oldest_use = self.pool[index]["pages"]
 
         if oldest_use.dirty:
             oldest_use.pool_to_file()
 
-        index = oldest_use.pool_index
-        self.pool.pop(oldest_index)
-        del self.pool_directory[index]
+        del self.pool[oldest_index]
         self.pages_in_pool -= 1
 
         return True
@@ -129,6 +122,9 @@ class PagesInPool:
 
     # Name of metadata column or Column number
     def pool_to_file(self):
+
+        if not os.path.exists(self.path):
+            os.mkdir(self.path)
 
         successful_write = True
         for page in self.pages:

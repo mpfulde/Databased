@@ -1,6 +1,8 @@
 import math
+import os
 import time
 from lstore.config import *
+
 
 class Page:
 
@@ -24,7 +26,8 @@ class Page:
             # print(value)
         else:
             self.data[self.num_records * NO_BYTES: (self.num_records * NO_BYTES + 8)] = value.to_bytes(NO_BYTES,
-                                                                                                       byteorder='big', signed=True)
+                                                                                                       byteorder='big',
+                                                                                                       signed=True)
             # print(self.data[self.num_records * NO_BYTES: (self.num_records * NO_BYTES + 8)])
             # print(value)
         self.num_records += 1
@@ -65,7 +68,7 @@ class Page:
 
     def find_all(self, value):
         row_list = []
-        for row in range(0, math.floor(4096)):
+        for row in range(0, math.floor(PAGE_SIZE / NO_BYTES)):
             val = self.read(row)
             # print(val)
             if val == value:
@@ -75,6 +78,10 @@ class Page:
 
     # writes itself to a specific file path
     def write_to_path(self, path):
+        if not os.path.exists(path):
+            file = open(path, 'x')
+            file.close()
+
         file = open(path, "wb")
         for i in range(self.num_records):
             file.write(self.data[i:i + NO_BYTES])
@@ -89,7 +96,6 @@ class Page:
         file.close()
 
 
-
 class BasePage(Page):
     def __init__(self):
         super().__init__()
@@ -98,38 +104,21 @@ class BasePage(Page):
             4096 / NO_BYTES) * 2  # will always be 1 more than the allowed records in the page range as to not have conlficting ID's
         self.tail_directory = {}  # similar system to the page_directory in table.py
 
-    def new_tid(self):
-        tid = self.num_tails
-        self.num_tails += 1
-
-        # gets the current page user is on
-        page = math.floor((tid - ((4096 / NO_BYTES) * 2)) / round(4096 / NO_BYTES))
-
-        # gets the current row for the
-        row = math.floor((tid - ((4096 / NO_BYTES) * 2)) % round(4096 / NO_BYTES))
-
-        # adds a new tail page if not existant
-        if page > len(self.TailPages):
-            new_tail = Page()
-            self.TailPages.append(new_tail)
-
-        self.tail_directory[tid] = {
-            'row': row,
-            'page': page
-        }
-
-        return tid
-
 
 class PageRange:
 
-    def __init__(self, num_columns):
+    def __init__(self, num_columns, path):
 
         # will regret later but for now just storing all base pages in a list its easier although slower
+        if not os.path.exists(path):
+            os.mkdir(f"{path}/")
+            os.mkdir(f"{path}/BasePages")
+            os.mkdir(f"{path}/TailPages")
 
         self.base_page_count = 1
         self.tail_page_count = 0
         self.num_columns = num_columns
+        self.num_updates = 0
         self.tail_directory = {}
 
     def to_json(self):
@@ -141,45 +130,23 @@ class PageRange:
 
         return page_range_data
 
+    # new tail ID, rid for tail pages
+    def new_tid(self, base_page):
+        tid = self.num_updates
+        self.num_updates += 1
 
-    # when inserting we are only dealing with base pages
-    def write_record(self, record, page):
-        record_list = record.create_list()
-        successful_write = False
+        # gets the current page user is on
+        page = math.floor(tid / round(PAGE_SIZE / NO_BYTES))
 
-        latest_page = self.base_page_count * page
+        # gets the current row for the
+        row = math.floor(tid % round(PAGE_SIZE / NO_BYTES))
 
-        # determine if we need ot make a new page
-        if latest_page > len(self.BasePages) - 1:
-            for i in range(self.base_page_count):
-                # if self.BasePages[i + latest_page - self.base_page_count].has_capacity():
-                #     raise Exception("Trying to make a new page when previous page has capacity")\
-
-                new_page = BasePage()
-                self.BasePages[i + latest_page - self.base_page_count].child = new_page
-                new_page.parent = self.BasePages[i + latest_page - self.base_page_count]
-                self.BasePages.append(new_page)
-
-        # checks if randomly accessing a deleted row
-        if self.BasePages[self.indirection] == (-1):
-            raise Exception("Accessing a deleted row")
-
-        # attempts to write to base pages
-        for i in range(0, self.base_page_count):
-            if i >= self.base_page_count:
-                raise Exception("Outside of allowed column space")
-
-            if i is 3:
-                successful_write = self.BasePages[i + latest_page].write(0)
-            else:
-
-                successful_write = self.BasePages[i + latest_page].write(record_list[i])
-                # if i is 4:
-                #     print(record_list[i])
-                #     print(self.BasePages[i + latest_page].read(self.BasePages[i+latest_page].num_records - 1))
-
-        # if successful return True, if unsuccessful will throw exception
-        return successful_write
+        self.tail_directory[tid] = {
+            'row': row,
+            'page': page,
+            'base_page': base_page
+        }
+        pass
 
     def get_record(self, row, page, update_list):
 
@@ -242,7 +209,8 @@ class PageRange:
             old_row = self.BasePages[page * self.base_page_count + 1].tail_directory[old_rid].get("row")
             old_page = self.BasePages[page * self.base_page_count + 1].tail_directory[old_rid].get("page")
 
-            successful_update = self.BasePages[page * self.base_page_count + self.indirection].TailPages[old_page].write_row(tid, old_row)
+            successful_update = self.BasePages[page * self.base_page_count + self.indirection].TailPages[
+                old_page].write_row(tid, old_row)
 
         if tail_page > len(self.BasePages[page * self.base_page_count].TailPages) - 1:
             for i in range(0, self.base_page_count):
@@ -252,12 +220,16 @@ class PageRange:
                 self.BasePages[page * self.base_page_count + i].TailPages.append(new_tail)
 
         successful_write = self.BasePages[page * self.base_page_count].TailPages[tail_page].write(tid)
-        successful_write = successful_write and self.BasePages[page * self.base_page_count + 1].TailPages[tail_page].write(tid)
-        successful_write = successful_write and self.BasePages[page * self.base_page_count + 2].TailPages[tail_page].write(round(time.time()))
-        successful_write = successful_write and self.BasePages[page * self.base_page_count + 3].TailPages[tail_page].write(self.BasePages[page*self.base_page_count + 3].read(row))
+        successful_write = successful_write and self.BasePages[page * self.base_page_count + 1].TailPages[
+            tail_page].write(tid)
+        successful_write = successful_write and self.BasePages[page * self.base_page_count + 2].TailPages[
+            tail_page].write(round(time.time()))
+        successful_write = successful_write and self.BasePages[page * self.base_page_count + 3].TailPages[
+            tail_page].write(self.BasePages[page * self.base_page_count + 3].read(row))
 
         for i in range(len(updates)):
-            successful_write = successful_write and self.BasePages[page * self.base_page_count + i + 4].TailPages[tail_page].write(updates[i])
+            successful_write = successful_write and self.BasePages[page * self.base_page_count + i + 4].TailPages[
+                tail_page].write(updates[i])
 
         return successful_write and successful_update
 

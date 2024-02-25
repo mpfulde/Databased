@@ -1,15 +1,13 @@
 import ast
+import math
 import os.path
 import pickle
-import json
-
-from lstore.index import Index
-from lstore.page import Page, PageRange
-from lstore.config import *
-# from lstore.bufferpool import Bufferpool
-import math
+import threading
 from time import time
 
+from lstore.config import *
+from lstore.index import Index
+from lstore.page import PageRange
 
 
 RECORDS_PER_PAGE = 4096 / 8  # 4kb / 8 byte ints
@@ -36,11 +34,13 @@ def table_from_json(data):
         if key != "metadata":
             if not os.path.exists(f"{metadata['path']}/{key}"):
                 os.mkdir(f"{metadata['path']}/{key}")
+                os.mkdir(f"{metadata['path']}/{key}/BasePages")
+                os.mkdir(f"{metadata['path']}/{key}/TailPages")
 
-            range_ = PageRange(metadata['num_columns'])
+            range_ = PageRange(metadata['num_columns'], f"{metadata['path']}/{key}")
             range_.base_page_count = json_[key]["base_page_count"]
             range_.tail_page_count = json_[key]["tail_page_count"]
-            range_.tail_records = json_[key]["tail_directory"]
+            range_.tail_directory = json_[key]["tail_directory"]
             table.page_ranges.append(range_)
 
             pass
@@ -81,10 +81,11 @@ class Table:
         self.num_columns = num_columns
         self.num_records = 0
         self.path = path
-        self.page_ranges = [PageRange(num_columns)]
+        self.page_ranges = [PageRange(num_columns, f"{path}/0")]
         self.page_directory = {}
         self.index = Index(self)
         self.bufferpool = None
+        # self.lock = threading.Lock()
         pass
 
     # does this one column at a time (will change later)
@@ -97,20 +98,20 @@ class Table:
         if not self.bufferpool.is_page_loaded(page_range_id, page, True):
             self.bufferpool.load_page_to_pool(self.path, page_range_id, self.num_columns, page, True)
 
-        spot_in_pool = self.bufferpool.get_pool_id(page_range_id, page, True)
+        spot_in_pool = (page_range_id, page, True)
 
         record_list = record.create_list()
 
-        try:
-            for i in range(len(record_list)):
-                self.bufferpool.pool[spot_in_pool].pages[i].write(record_list[i])
-        except Exception as e:
-            print(e)
-            return False
+        # try:
+        for i in range(len(record_list)):
+            self.bufferpool.pool[spot_in_pool]["pages"].pages[i].write(record_list[i])
+        # except Exception as e:
+        #     print(e)
+        #     return False
 
-        self.bufferpool.pool[spot_in_pool].dirty = True
-        self.bufferpool.pool[spot_in_pool].last_use = time()
-        self.bufferpool.pool[spot_in_pool].pin = False
+        self.bufferpool.pool[spot_in_pool]["pages"].dirty = True
+        self.bufferpool.pool[spot_in_pool]["pages"].last_use = time()
+        self.bufferpool.pool[spot_in_pool]["pages"].pin = False
 
         return True
 
@@ -156,10 +157,6 @@ class Table:
         successful_update = page_range.update_record(row, page, old_rid, new_cols)
         return successful_update
 
-    # new tail ID, rid for tail pages
-    def new_tid(self, rid):
-        pass
-
     def new_rid(self):
 
         rid = self.num_records
@@ -204,7 +201,7 @@ class Table:
         self.page_directory.clear()
 
     def add_new_page_range(self):
-        self.page_ranges.append(PageRange(self.num_columns, INDIRECTION_COLUMN))
+        self.page_ranges.append(PageRange(self.num_columns, f"{self.path}/{len(self.page_ranges)}"))
         pass
 
     def get_records(self, search_key, index):
