@@ -15,6 +15,8 @@ from lstore.page import PageRange
 
 def record_from_list(rlist, original):
     record = Record(rlist[RID_COLUMN], rlist[SCHEMA_ENCODING_COLUMN], rlist[NO_METADATA], rlist[NO_METADATA:(len(rlist))], original)
+    record.base_rid = rlist[BASE_RID_COLUMN]
+    record.original = record.base_rid == record.rid
     record.timestamp = rlist[TIMESTAMP_COLUMN]
     return record
 
@@ -125,23 +127,25 @@ class Table:
         return True
 
     def read_record(self, rid_list):
-        first_record_page_range = self.page_directory[rid_list[0]].get("page_range")
-        first_page_range = self.page_ranges[first_record_page_range]
+        first_page_range_id = self.page_directory[rid_list[0]].get("page_range")
+        first_page_range = self.page_ranges[first_page_range_id]
         record_list = []
         for rid in rid_list:
-            page_range = self.page_directory[rid].get("page_range")
+
             if rid > self.num_records:  # ie if tail record
+                page_range = first_page_range_id
                 page = first_page_range.tail_directory[rid].get("page")
                 row = first_page_range.tail_directory[rid].get("row")
                 is_base = False
                 pass
             else:
+                page_range = self.page_directory[rid].get("page_range")
                 page = self.page_directory[rid].get("page")
                 row = self.page_directory[rid].get("row")
                 is_base = True
 
-            if not self.bufferpool.is_page_loaded(page_range, page, True):
-                self.bufferpool.load_page_to_pool(self.path, page_range, self.num_columns, page, True)
+            if not self.bufferpool.is_page_loaded(page_range, page, is_base):
+                self.bufferpool.load_page_to_pool(self.path, page_range, self.num_columns, page, is_base)
 
             spot_in_pool = (page_range, page, is_base)
             record_as_list = []
@@ -163,7 +167,7 @@ class Table:
 
         return successful_delete
 
-    def update_record(self, rid, original, new_cols):
+    def update_record(self, rid, schema, original, new_cols):
 
         old_rid = rid
 
@@ -175,8 +179,30 @@ class Table:
         row = self.page_directory[rid].get("row")
 
         page_range = self.page_ranges[page_range_id]
-        successful_update = page_range.update_record(row, page, old_rid, new_cols)
-        return successful_update
+
+        tid = page_range.new_tid(page)
+        record = Record(tid, schema, new_cols[0], new_cols, False)
+        record.base_rid = rid
+        page = page_range.tail_directory[tid].get("page")
+        row = page_range.tail_directory[tid].get("row")
+
+        if not self.bufferpool.is_page_loaded(page_range_id, page, False):
+            self.bufferpool.load_page_to_pool(self.path, page_range_id, self.num_columns, page, False)
+
+        spot_in_pool = (page_range_id, page, False)
+
+        record_list = record.create_list()
+
+        for i in range(len(record_list)):
+            self.bufferpool.pool[spot_in_pool]["pages"].pages[i].write(record_list[i], row)
+
+        self.index.indices[self.key].update_tree(record.columns[self.key], record_list[RID_COLUMN])
+
+        self.bufferpool.pool[spot_in_pool]["pages"].dirty = True
+        self.bufferpool.pool[spot_in_pool]["pages"].last_use = time()
+        self.bufferpool.pool[spot_in_pool]["pages"].pin = False
+
+        return True
 
     def new_rid(self):
 

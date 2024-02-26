@@ -130,16 +130,21 @@ class Query:
         # try:
         old_records = self.select(primary_key, self.table.key, [0])
         latest_update = old_records[0]
-        new_schema = latest_update.schema_encoding
+        new_schema = [0] * len(cols)
         updated_columns = latest_update.columns
         for i in range(len(cols)):
             if cols[i] is not None:
                 updated_columns[i] = cols[i]
-                # new_schema[i] = '1'
+                new_schema[i] = 1
             else:
-                # new_schema[i] = '0'
+                new_schema[i] = 0
                 continue
-        self.table.update_record(latest_update.rid, latest_update.original, updated_columns)
+
+        schema = 0
+        for bit in new_schema:
+            schema = (schema << 1) | bit
+
+        self.table.update_record(latest_update.rid, schema,  latest_update.original, updated_columns)
         # except Exception as e:
         #     print("Something went wrong – check exception")
         #     print(e)
