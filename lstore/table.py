@@ -275,9 +275,6 @@ class Table:
         record = self.read_record(rid_list)
         return record
 
-    def get_column_range(self, start, end, column):
-        pass
-
     def write_to_files(self):
         # does not write any pages to files, that is handled by bufferpool.py
 
@@ -313,6 +310,14 @@ class Table:
         index_data.close()
 
         pass
+
+    def get_record_range(self, start, end):
+        rids = self.index.locate_range(start, end, self.key)
+        records = []
+        for rid_list in rids:
+            records.append(self.read_record(rid_list))
+
+        return records
 
     def ready_to_merge(self, rid):
         page_range_id = self.page_directory[rid].get("page_range_id")

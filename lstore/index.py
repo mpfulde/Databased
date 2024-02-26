@@ -127,13 +127,8 @@ class Index:
         rid_list = []
 
         for i in range(begin, end):
-            value = self.locate(column, i)
-            if value is not None:
-                if len(value) > 1:
-                    for rid in value:
-                        rid_list.append(rid)
-                else:
-                    rid_list.append(value[0])
+            if i in self.indices[column].value_tree:
+                rid_list.append(self.indices[column].get_rids(i))
 
         return rid_list
 

@@ -101,6 +101,7 @@ class Database:
     def get_table(self, name):
         for table in self.tables:
             if table.name == name:
+                table.bufferpool = self.bufferpool
                 return table
 
         print("no table of that name found")

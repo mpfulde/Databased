@@ -130,7 +130,7 @@ class Query:
         # try:
         old_records = self.select(primary_key, self.table.key, [0])
         latest_update = old_records[0]
-        new_schema = [0] * len(cols)
+        new_schema = [int(x) for x in '{:0{size}b}'.format(latest_update.schema_encoding, size=len(cols))]
         updated_columns = latest_update.columns
         for i in range(len(cols)):
             if cols[i] is not None:
