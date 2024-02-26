@@ -96,7 +96,7 @@ class Indices:
 
 
     def remove_from_tree(self, value):
-        self.value_tree.remove_value(value)
+        del self.value_tree[value]
 
 
 class Index:

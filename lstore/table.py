@@ -157,15 +157,29 @@ class Table:
 
         return record_list
 
-    def delete_record(self, rid):
+    def delete_record(self, rid, key):
         page_range_id = self.page_directory[rid].get("page_range")
         page = self.page_directory[rid].get("page")
         row = self.page_directory[rid].get("row")
         page_range = self.page_ranges[page_range_id]
 
-        successful_delete = page_range.delete_record(row, page)
+        if not self.bufferpool.is_page_loaded(page_range_id, page, True):
+            self.bufferpool.load_page_to_pool(self.path, page_range_id, self.num_columns, page, True)
 
-        return successful_delete
+        spot_in_pool = (page_range_id, page, True)
+
+        # try:
+        self.bufferpool.pool[spot_in_pool]["pages"].pages[INDIRECTION_COLUMN].write(-1, row)
+        self.bufferpool.pool[spot_in_pool]["pages"].pages[RID_COLUMN].write(-1, row)
+
+        self.index.indices[self.key].remove_from_tree(key)
+
+        self.bufferpool.pool[spot_in_pool]["pages"].dirty = True
+        self.bufferpool.pool[spot_in_pool]["pages"].last_use = time()
+        self.bufferpool.pool[spot_in_pool]["pages"].pin = False
+
+
+        return True
 
     def update_record(self, rid, schema, original, new_cols):
 
@@ -238,9 +252,9 @@ class Table:
         return rid
 
     def get_rid_from_key(self, search_key, column):
-        rid, tid_list = self.index.locate(column, search_key)
+        rid = self.index.locate(column, search_key)
 
-        return rid, tid_list
+        return rid
 
     # clean up function so we dont lose memory
     def delete_table(self):

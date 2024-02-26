@@ -25,7 +25,7 @@ class Query:
     def delete(self, primary_key):
         rid = self.table.get_rid_from_key(primary_key, self.table.key)
         # try:
-        self.table.delete_record(rid[0])
+        self.table.delete_record(rid[0], primary_key)
         # except Exception as e:
         # print(e)
         # return False
