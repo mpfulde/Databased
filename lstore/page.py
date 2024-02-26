@@ -16,33 +16,20 @@ class Page:
     def has_capacity(self):
         return self.num_records * NO_BYTES < 4096
 
-    def write(self, value):
+    def write(self, value, row):
         if not self.has_capacity():
             return False
 
         # print(value)
         if type(value) == bytes:
-            self.data[self.num_records * NO_BYTES: (self.num_records * NO_BYTES + 8)] = value
+            self.data[row * NO_BYTES: (row * NO_BYTES + 8)] = value
             # print(value)
         else:
-            self.data[self.num_records * NO_BYTES: (self.num_records * NO_BYTES + 8)] = value.to_bytes(NO_BYTES,
-                                                                                                       byteorder='big',
-                                                                                                       signed=True)
+            self.data[row * NO_BYTES: (row * NO_BYTES + 8)] = value.to_bytes(NO_BYTES, byteorder='big', signed=True)
             # print(self.data[self.num_records * NO_BYTES: (self.num_records * NO_BYTES + 8)])
             # print(value)
         self.num_records += 1
         # print(self.num_records)
-        return True
-
-    def write_row(self, value, row):
-        if not self.has_capacity():
-            return False
-
-        if row >= self.num_records:
-            return self.write(value)
-        # print(value.to_bytes(NO_BYTES, byteorder='big'))
-        self.data[row * NO_BYTES: (row * NO_BYTES + 8)] = value.to_bytes(NO_BYTES, byteorder='big', signed=True)
-        # print(int.from_bytes(self.data[row * NO_BYTES: (row * NO_BYTES + 8)], byteorder='big'))
         return True
 
     """
@@ -51,7 +38,7 @@ class Page:
 
     def read(self, space):
         # grabs one 64 bit data piece from the data array
-        req_data = self.data[space * NO_BYTES: (space * NO_BYTES + 8)]
+        req_data = self.data[space * NO_BYTES: (space * NO_BYTES + NO_BYTES)]
         # print(req_data)
         # print(space)
         value = int.from_bytes(req_data, byteorder='big', signed=True)
@@ -84,7 +71,7 @@ class Page:
 
         file = open(path, "wb")
         for i in range(self.num_records):
-            file.write(self.data[i:i + NO_BYTES])
+            file.write(self.data)
         file.close()
 
         return True

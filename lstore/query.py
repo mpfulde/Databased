@@ -40,8 +40,7 @@ class Query:
     def insert(self, *columns):
         # print("attempting to insert")
 
-        schema_encoding = '0' * self.table.num_columns
-        schema_encoding.encode()
+        schema_encoding = 0
 
         # converts columns to a list for ease of use
         cols = list(columns)
@@ -56,13 +55,13 @@ class Query:
             #    cols.append(None)
             return False
 
-        try:
-            record = Record(self.table.new_rid(), schema_encoding.encode(), cols[0], cols, True)
-            self.table.write_record(record)
-        except Exception as e:
-            print("Something went wrong, please see exception list")
-            print(e)
-            return False
+        # try:
+        record = Record(self.table.new_rid(), schema_encoding, cols[0], cols, True)
+        self.table.write_record(record)
+        # except Exception as e:
+        #     print("Something went wrong, please see exception list")
+        #     print(e)
+        #     return False
 
         # can only get here if write was successful
         return True

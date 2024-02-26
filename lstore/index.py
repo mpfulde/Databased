@@ -11,71 +11,79 @@ Indices are usually B-Trees, but other data structures can be used as well.
 
 # A very basic b-tree implementation to handle Index creation
 class IndexNode:
-    def __init__(self, leaf):
-        self.leaf = leaf
-        self.keys = []  # list of keys per node, each key is a tuple (value _ ridlist)
-        self.child = []
 
+    def __init__(self, size, leaf):
+        self.leaf = leaf  # Is true when node is leaf. Otherwise false
+        self.size = size
+        self.keys = [(None, [None])] * size
+        self.num_keys = 0
+        self.child = [None] * size
+
+    # the actual insert function, called recursively to insert the values
+    def insert(self, value, rid):
+        index = self.num_keys - 1
+        if self.leaf:
+            while index >= 0 and self.keys[index][0] > value:
+                self.keys[index + 1] = self.keys[index]
+                index -= 1
+            self.keys[index + 1] = (value, [rid])
+            self.num_keys += 1
+        else:
+            while index >= 0 and self.keys[index][0] > value:
+                index -= 1
+            if self.child[index + 1].num_keys == self.size:
+                self.split_nodes(index + 1, self.child[index + 1])
+                if self.keys[index + 1][0] < value:
+                    index += 1
+            self.child[index + 1].insert(value, rid)
+
+    def split_nodes(self, index, node):
+        new_node = IndexNode(node.size, node.leaf)
+        new_node.num_keys = math.floor(self.size/2) - 1
+        for j in range(math.floor(self.size/2) - 1):
+            new_node.keys[j] = node.keys[j + math.floor(self.size/2)]
+        if not node.leaf:
+            for j in range(math.floor(self.size/2)):
+                new_node.child[j] = node.child[j + math.floor(self.size/2)]
+        node.num_keys = math.floor(self.size/2) - 1
+        for j in range(self.num_keys, index, -1):
+            self.child[j + 1] = self.child[j]
+        self.child[index + 1] = new_node
+        for j in range(self.num_keys - 1, index - 1, -1):
+            self.keys[j + 1] = self.keys[j]
+        self.keys[index] = node.keys[math.floor(self.size/2) - 1]
+        self.num_keys += 1
 
 class IndexTree:
     def __init__(self, node_size):
-        self.root = IndexNode(True)
+        self.root = None
         self.node_size = node_size
         pass
 
     def insert(self, value, rid):
-        node = self.root
-        if len(node.keys) == self.node_size:
-            temp = IndexNode(False)
-            self.root = temp
-            temp.child.insert(0, node)
-            self.split_full_node(temp, 0)
-            self.recursive_insert(temp, value, rid)
-        else:
-            self.recursive_insert(node, value, rid)
 
-    # the actual insert function, called recursively to insert the values
-    def recursive_insert(self, node, value, rid):
-        index = len(node.keys) - 1
-        if node.leaf:
-            node.keys.append((None, []))
-            while index >= 0 and value < node.keys[index][0]:
-                node.keys[index + 1] = node.keys[index]
-                index -= 1
-            if node.keys[index][0] == value:
-                node.keys[index][1].append(rid)
-                node.keys.pop(index + 1)
+
+
+        if self.root is None:
+            self.root = IndexNode(self.node_size, True)
+            self.root.keys[0] = (value, [rid])  # Insert key
+            self.root.num_keys = 1
+        else:
+            if self.get_rids(value) is not None:
+                self.insert_to_existing_node(value, rid)
                 return
-            if node.keys[index + 1][0] == value:
-                new_key = (value, node.keys[index + 1][1].append(rid))
-            else:
-                new_key = (value, [rid])
 
-            node.keys[index + 1] = new_key
-        else:
-            while index >= 0 and value < node.keys[index][0]:
-                index -= 1
-            index += 1
-            if len(node.keys) == self.node_size:
-                self.split_full_node(node, index)
-                if value > node.keys[index][0]:
+            if self.root.num_keys == self.node_size:
+                new_node = IndexNode(self.node_size, False)
+                new_node.child[0] = self.root
+                new_node.split_nodes(0, self.root)
+                index = 0
+                if new_node.keys[0][0] < value:
                     index += 1
-            self.recursive_insert(node.child[index], value, rid)
-
-    # if a node is full, split into children
-    def split_full_node(self, node, index):
-        size = self.node_size
-        child = node.child[index]
-        new_node = IndexNode(child.leaf)
-        node.child.insert(index + 1, new_node)
-        node.keys.insert(index, child.keys[math.floor(size / 2) - 1])
-        new_node.keys = child.keys[math.floor(size / 2): size]
-        child.keys = child.keys[0: math.floor(size / 2) - 1]
-        if not child.leaf:
-            node.child = child.child[math.floor(size / 2): size]
-            child.child = child.child[0:math.floor(size / 2)]
-
-        pass
+                new_node.child[index].insert(value, rid)
+                self.root = new_node
+            else:
+                self.root.insert(value, rid)
 
     def get_rids(self, value, node=None):
         if node is None:
@@ -83,7 +91,7 @@ class IndexTree:
 
         else:
             index = 0
-            while index < len(node.keys) and value > node.keys[index][0]:
+            while index < node.num_keys and value > node.keys[index][0]:
                 index += 1
             if index < len(node.keys) and value == node.keys[index][0]:
                 return node.keys[index][1]
@@ -107,6 +115,25 @@ class IndexTree:
             else:
                 self.get_rids(value, node.child[index])
 
+    def insert_to_existing_node(self, value, rid, node=None):
+        if node is None:
+            self.insert_to_existing_node(value, rid, self.root)
+
+        else:
+            index = 0
+            while index < node.num_keys and value > node.keys[index][0]:
+                index += 1
+            if index < node.num_keys and value == node.keys[index][0]:
+                new_rids = node.keys[index][1]
+                new_rids.append(rid)
+                new_key = list(node.keys[index])
+                new_key[1] = new_rids
+                node.keys[index] = tuple(new_key)
+            elif node.leaf:
+                return False
+            else:
+                self.insert_to_existing_node(value, rid, node.child[index])
+
 
 # represents a single indice
 class Indices:
@@ -117,9 +144,15 @@ class Indices:
         self.value_tree = IndexTree(TREE_SIZE)
         self.latest_rid = table.num_records - 1  # knows where to pick up when updating
         # populate the index with the table data
-        table.bufferpool.commit_pool()
+        if table.bufferpool is not None:
+            table.bufferpool.commit_pool()
 
-        last_page_range = table.page_directory[self.latest_rid].get("page_range")
+        # nothing to add to the table
+        if self.latest_rid == -1:
+            return
+
+        last_page_range = table.page_directory[self.latest_rid].get("page_range") + 1
+        last_base_page = table.page_directory[self.latest_rid].get("page")
         for i in range(0, last_page_range):
             for j in range(0, table.page_ranges[i].base_page_count):
                 rid_page = Page("rid")
@@ -131,11 +164,15 @@ class Indices:
                 schema_page = Page("Schema encoding")
                 schema_page.read_from_path(f"{table.path}/{i}/BasePages/{j}/schema_encoding.page")
 
-                for row in range(0, PAGE_SIZE / NO_BYTES):
+                rows = math.floor(PAGE_SIZE/NO_BYTES)
+                if j == last_base_page:
+                    rows = table.page_directory[self.latest_rid].get("row")
+
+                for row in range(0, rows):
                     value = column_page.read(row)
-                    rid = column_page.read(row)
-                    indirection = column_page.read(row)
-                    schema_encoding = column_page.read(row)
+                    rid = rid_page.read(row)
+                    indirection = indirection_page.read(row)
+                    schema_encoding = schema_page.read(row)
 
                     # Only none if last page
                     if value is None:
@@ -146,12 +183,13 @@ class Indices:
                         continue
 
                     update = False
-                    while i in range(table.num_columns):
+                    for i in range(table.num_columns):
                         bit = schema_encoding >> i
                         bit %= 10
                         if bit != 0:
                             update = True
                             break
+
 
                     if update:
                         tail_page = table.page_ranges[i].tail_directory[indirection].get("page")

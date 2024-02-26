@@ -72,11 +72,13 @@ class Database:
             # print("creating table named: " + name + "with num_cols: " + str(num_columns))
             table = Table(name, num_columns, key_index, f"{self.root}/{name}")
             self.tables.append(table)
+            table.index.create_index(key_index)
         else:
             print("table of that name already exists")
             table = self.get_table(name)
 
         table.bufferpool = self.bufferpool
+
         return table
 
     """

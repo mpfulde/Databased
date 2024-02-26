@@ -10,8 +10,7 @@ from lstore.index import Index
 from lstore.page import PageRange
 
 
-RECORDS_PER_PAGE = 4096 / 8  # 4kb / 8 byte ints
-MAX_PAGES = 16  # max number of pages in page range (based off example exclusively)
+
 
 
 def record_from_list(rlist, original):
@@ -53,6 +52,7 @@ class Record:
 
     def __init__(self, rid, schema_encoding, key, columns, original):
         self.rid = rid
+        self.base_rid = rid
         self.timestamp = round(time())
         self.schema_encoding = schema_encoding
         self.key = key
@@ -60,12 +60,13 @@ class Record:
         self.original = original
 
     def create_list(self):
-        list_ = [None] * (len(self.columns) + 4)
+        list_ = [None] * (len(self.columns) + NO_METADATA)
         list_[INDIRECTION_COLUMN] = self.rid  # indirection should point to itself by default
         list_[RID_COLUMN] = self.rid
+        list_[BASE_RID_COLUMN] = self.base_rid
         list_[TIMESTAMP_COLUMN] = self.timestamp
         list_[SCHEMA_ENCODING_COLUMN] = self.schema_encoding
-        list_[4:len(list_)] = self.columns
+        list_[(NO_METADATA):len(list_)] = self.columns
         return list_
 
 
@@ -96,6 +97,7 @@ class Table:
         # grabs the current page range from the page range hashmap
         page_range_id = self.page_directory[record.rid].get("page_range")
         page = self.page_directory[record.rid].get("page")
+        row = self.page_directory[record.rid].get("row")
         page_range = self.page_ranges[page_range_id]
 
         if not self.bufferpool.is_page_loaded(page_range_id, page, True):
@@ -107,14 +109,18 @@ class Table:
 
         # try:
         for i in range(len(record_list)):
-            self.bufferpool.pool[spot_in_pool]["pages"].pages[i].write(record_list[i])
+            self.bufferpool.pool[spot_in_pool]["pages"].pages[i].write(record_list[i], row)
         # except Exception as e:
         #     print(e)
         #     return False
 
+        self.index.indices[self.key].update_tree(record.columns[self.key], record_list[RID_COLUMN])
+
         self.bufferpool.pool[spot_in_pool]["pages"].dirty = True
         self.bufferpool.pool[spot_in_pool]["pages"].last_use = time()
         self.bufferpool.pool[spot_in_pool]["pages"].pin = False
+
+
 
         return True
 
