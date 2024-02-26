@@ -60,7 +60,7 @@ class Bufferpool:
         new_pages.pages = base_pages
         new_pages.path = page_path
         new_pages.last_use = time.time()
-        index = (page, page_range_id, is_base)
+        index = (page_range_id, page, is_base)
         new_pages.pool_index = index
 
         self.pool[index] = {

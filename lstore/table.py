@@ -14,7 +14,7 @@ from lstore.page import PageRange
 
 
 def record_from_list(rlist, original):
-    record = Record(rlist[RID_COLUMN], rlist[SCHEMA_ENCODING_COLUMN], rlist[4], rlist[4:(len(rlist))], original)
+    record = Record(rlist[RID_COLUMN], rlist[SCHEMA_ENCODING_COLUMN], rlist[NO_METADATA], rlist[NO_METADATA:(len(rlist))], original)
     record.timestamp = rlist[TIMESTAMP_COLUMN]
     return record
 
@@ -124,21 +124,33 @@ class Table:
 
         return True
 
-    def read_record(self, rid, tid_list):
-        if rid == -1:
-            raise Exception("accessing unknown record")
-
-        page_range_id = self.page_directory[rid].get("page_range")
-        page_range = self.page_ranges[page_range_id]
-        page = self.page_directory[rid].get("page")
-        row = self.page_directory[rid].get("row")
-        records = page_range.get_record(row, page, tid_list)
+    def read_record(self, rid_list):
+        first_record_page_range = self.page_directory[rid_list[0]].get("page_range")
+        first_page_range = self.page_ranges[first_record_page_range]
         record_list = []
-        for i in range(0, len(records)):
-            if i == 0:
-                record_list.append(record_from_list(records[i], True))
+        for rid in rid_list:
+            page_range = self.page_directory[rid].get("page_range")
+            if rid > self.num_records:  # ie if tail record
+                page = first_page_range.tail_directory[rid].get("page")
+                row = first_page_range.tail_directory[rid].get("row")
+                is_base = False
+                pass
             else:
-                record_list.append(record_from_list(records[i], False))
+                page = self.page_directory[rid].get("page")
+                row = self.page_directory[rid].get("row")
+                is_base = True
+
+            if not self.bufferpool.is_page_loaded(page_range, page, True):
+                self.bufferpool.load_page_to_pool(self.path, page_range, self.num_columns, page, True)
+
+            spot_in_pool = (page_range, page, is_base)
+            record_as_list = []
+            for page in self.bufferpool.pool[spot_in_pool]["pages"].pages:
+                record_as_list.append(page.read(row))
+
+            record = record_from_list(record_as_list, is_base)
+            record_list.append(record)
+
         return record_list
 
     def delete_record(self, rid):
@@ -180,11 +192,15 @@ class Table:
         # gets the current page user is on
         page = math.floor(row_in_range / RECORDS_PER_PAGE)
 
+
         # gets the current row for the
         row = math.floor(row_in_range % RECORDS_PER_PAGE)
 
         if page_range_id >= len(self.page_ranges):
             self.add_new_page_range()
+
+        if page >= self.page_ranges[page_range_id].base_page_count - 1:
+            self.page_ranges[page_range_id].base_page_count += 1
 
         self.page_directory[rid] = {
             'page_range': page_range_id,
@@ -214,9 +230,9 @@ class Table:
         pass
 
     def get_records(self, search_key, index):
-        rid, tid_list = self.get_rid_from_key(search_key, index)
+        rid_list = self.index.locate(index, search_key)
 
-        record = self.read_record(rid, tid_list)
+        record = self.read_record(rid_list)
         return record
 
     def get_column_range(self, start, end, column):
