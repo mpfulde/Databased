@@ -90,7 +90,7 @@ class Table:
         self.index = Index(self)
         self.bufferpool = None
 
-        self.lock = threading.Lock()
+        self.merge_lock = threading.Lock()
         self.merge_thread = threading.Thread(target=self.__merge)
         pass
 
@@ -127,6 +127,7 @@ class Table:
         return True
 
     def read_record(self, rid_list):
+        self.merge_lock.acquire()
         first_page_range_id = self.page_directory[rid_list[0]].get("page_range")
         first_page_range = self.page_ranges[first_page_range_id]
         record_list = []
@@ -155,6 +156,7 @@ class Table:
             record = record_from_list(record_as_list, is_base)
             record_list.append(record)
 
+        self.merge_lock.release()
         return record_list
 
     def delete_record(self, rid, key):
@@ -195,6 +197,7 @@ class Table:
         page_range = self.page_ranges[page_range_id]
 
         tid = page_range.new_tid(page)
+        self.page_directory[rid]["tps"] = tid
         record = Record(tid, schema, new_cols[0], new_cols, False)
         record.base_rid = rid
         page = page_range.tail_directory[tid].get("page")
@@ -246,7 +249,7 @@ class Table:
             'page_range': page_range_id,
             'row': row,
             'page': page,
-            'tps': 0
+            'tps': rid
         }
 
         return rid
@@ -270,6 +273,9 @@ class Table:
         pass
 
     def get_records(self, search_key, index):
+        if self.index.indices[index] is None:
+            self.index.create_index(index)
+
         rid_list = self.index.locate(index, search_key)
 
         record = self.read_record(rid_list)
@@ -278,7 +284,7 @@ class Table:
     def write_to_files(self):
         # does not write any pages to files, that is handled by bufferpool.py
 
-        self.lock = None
+        self.merge_lock = None
         self.merge_thread = None
 
         if not os.path.exists(self.path):
@@ -327,4 +333,6 @@ class Table:
             self.merge_thread.start()
 
     def __merge(self):
+        self.merge_lock.acquire()
+        self.merge_lock.release()
         pass
