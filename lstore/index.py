@@ -6,6 +6,7 @@ from lstore.config import *
 """
 A data strucutre holding indices for various columns of a table. Key column should be indexd by default, other columns can be indexed through this object. 
 Indices are usually B-Trees, but other data structures can be used as well.
+We opted to use a dictionary as the data structure for indices, its a little easier at the cost of performance
 """
 
 # represents a single indice

@@ -127,8 +127,7 @@ class Query:
     def update(self, primary_key, *columns):
         cols = list(columns)
 
-        original_rid = self.table.index.locate(self.table.key, primary_key)[0]
-        self.table.ready_to_merge(original_rid)
+        self.table.ready_to_merge()
 
         # try:
         old_records = self.table.get_records(primary_key, self.table.key)

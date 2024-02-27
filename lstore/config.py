@@ -17,9 +17,6 @@ MAX_PAGES = 20
 NUM_UPDATES_TO_MERGE = 20000
 
 # Page
-PAGE_SIZE = 4096 # 4 kb
+PAGE_SIZE = 4096  # 4 kb
 NO_METADATA = 5  # 5 constant columns for all tables (defined in lstore/table.py)
 NO_BYTES = 8  # 64 bit integers so needing 8 bytes
-
-# Index
-TREE_SIZE = 5

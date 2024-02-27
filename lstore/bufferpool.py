@@ -60,7 +60,7 @@ class Bufferpool:
 
         # capactiy check
         if not self.has_capacity() and not self.ignore_limit:
-            ## do work
+            # do work
             self.evict()
             pass
 
@@ -147,16 +147,14 @@ class PagesInPool:
         if not os.path.exists(self.path):
             os.mkdir(self.path)
 
-        new_path = ""
-
         successful_write = True
         for page in self.pages:
             if type(page.name) is int:
                 # example "ECS165/test1/0/BasePages/0/column_0.page
-                file_path = f"{self.path}/column_{page.name}{new_path}.page"
+                file_path = f"{self.path}/column_{page.name}.page"
             else:
                 # example "ECS165/test1/0/BasePages/0/rid.page
-                file_path = f"{self.path}/{page.name}{new_path}.page"
+                file_path = f"{self.path}/{page.name}.page"
 
             successful_write = successful_write and page.write_to_path(file_path)
 

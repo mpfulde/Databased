@@ -5,7 +5,6 @@ import pickle
 import threading
 from time import time
 
-from lstore.bufferpool import Bufferpool
 from lstore.config import *
 from lstore.index import Index
 from lstore.page import PageRange
@@ -67,7 +66,7 @@ class Record:
         list_[BASE_RID_COLUMN] = self.base_rid
         list_[TIMESTAMP_COLUMN] = self.timestamp
         list_[SCHEMA_ENCODING_COLUMN] = self.schema_encoding
-        list_[(NO_METADATA):len(list_)] = self.columns
+        list_[NO_METADATA:len(list_)] = self.columns
         return list_
 
 
@@ -318,17 +317,21 @@ class Table:
 
         return records
 
-    def ready_to_merge(self, rid):
-        page_range_id = self.page_directory[rid].get("page_range")
-        page_range = self.page_ranges[page_range_id]
-        if page_range.num_updates % NUM_UPDATES_TO_MERGE == 0 and page_range.num_updates != 0:
+    # checks all page range updates and sees if there has been enough to perform a merge
+    def ready_to_merge(self):
+        # grabs the total number of updates across all the page ranges
+        all_updates = 0
+        for page_range in self.page_ranges:
+            all_updates += page_range.num_updates
+
+        # checks if its ready to start a merge
+        if all_updates % NUM_UPDATES_TO_MERGE == 0 and all_updates != 0:
             # tells to start merging
             self.merge_thread = threading.Thread(target=self.__merge, daemon=True)
             self.merge_thread.start()
 
     def __merge(self):
         self.merge_lock.acquire()
-
 
         merge_queue = []  # tuple of baserid and latest tid
         # determines what page range we are on (for example: if we are past the 16 page mark)
@@ -370,7 +373,7 @@ class Table:
                 for i in range(BASE_RID_COLUMN, len(bp_copy.pages)):
                     bp_copy.pages[i].write(tp_copy.pages[i].read(tail_row), row)
 
-                # bp_copy.new = True
+                bp_copy.new = True
 
                 # step 4
                 self.page_directory[merge[0]]["tid"] = merge[0]
@@ -382,8 +385,6 @@ class Table:
                 self.bufferpool.pool[(page_range_id, page, True)]["pages"].pin = False
 
             pass
-
-
 
         self.merge_lock.release()
 
