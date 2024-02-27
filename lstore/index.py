@@ -65,18 +65,43 @@ class Indices:
 
 
                     if update:
+
                         tail_page = table.page_ranges[i].tail_directory[indirection].get("page")
                         tail_page_row = table.page_ranges[i].tail_directory[indirection].get("row")
                         tail_page_column = Page(column)
                         tail_page_column.read_from_path(f"{table.path}/{i}/TailPages/{tail_page}/column_{column}.page")
                         tail_rid_page = Page("rid")
                         tail_rid_page.read_from_path(f"{table.path}/{i}/TailPages/{tail_page}/rid.page")
+                        tail_indirection_page = Page("indirection")
+                        tail_indirection_page.read_from_path(f"{table.path}/{i}/TailPages/{tail_page}/indirection.page")
                         value = tail_page_column.read(tail_page_row)
-                        tid = tail_page_column.read(tail_page_row)
-
+                        tid = tail_rid_page.read(tail_page_row)
                         rid_list = self.value_tree[value].get("rid_list")
                         rid_list.append(tid)
                         self.value_tree[value]["rid_list"] = rid_list
+
+                        # repeat operation until at the latest record
+                        while indirection != tid:
+
+                            tail_page = table.page_ranges[i].tail_directory[indirection].get("page")
+                            tail_page_row = table.page_ranges[i].tail_directory[indirection].get("row")
+                            tail_page_column = Page(column)
+                            tail_page_column.read_from_path(
+                                f"{table.path}/{i}/TailPages/{tail_page}/column_{column}.page")
+                            tail_rid_page = Page("rid")
+                            tail_rid_page.read_from_path(f"{table.path}/{i}/TailPages/{tail_page}/rid.page")
+                            tail_indirection_page = Page("indirection")
+                            tail_indirection_page.read_from_path(
+                                f"{table.path}/{i}/TailPages/{tail_page}/indirection.page")
+                            rid_list = self.value_tree[value].get("rid_list")
+                            rid_list.append(tid)
+                            self.value_tree[value]["rid_list"] = rid_list
+                            value = tail_page_column.read(tail_page_row)
+                            tid = tail_rid_page.read(tail_page_row)
+                            rid_list = self.value_tree[value].get("rid_list")
+                            rid_list.append(tid)
+                            self.value_tree[value]["rid_list"] = rid_list
+
 
                     else:
                         rid_list = self.value_tree[value].get("rid_list")
