@@ -104,7 +104,7 @@ class Table:
             self.bufferpool.load_page_to_pool(self.path, page_range_id, self.num_columns, page, True)
 
         spot_in_pool = (page_range_id, page, True)
-
+        self.bufferpool.pool[spot_in_pool]["pages"].pin += 1
         record_list = record.create_list()
 
         # try:
@@ -118,7 +118,7 @@ class Table:
 
         self.bufferpool.pool[spot_in_pool]["pages"].dirty = True
         self.bufferpool.pool[spot_in_pool]["pages"].last_use = time()
-        self.bufferpool.pool[spot_in_pool]["pages"].pin = False
+        self.bufferpool.pool[spot_in_pool]["pages"].pin -= 1
 
         return True
 
@@ -145,12 +145,14 @@ class Table:
                 self.bufferpool.load_page_to_pool(self.path, page_range, self.num_columns, page, is_base)
 
             spot_in_pool = (page_range, page, is_base)
+            self.bufferpool.pool[spot_in_pool]["pages"].pin += 1
             record_as_list = []
             for page in self.bufferpool.pool[spot_in_pool]["pages"].pages:
                 record_as_list.append(page.read(row))
 
             record = record_from_list(record_as_list, is_base)
             record_list.append(record)
+            self.bufferpool.pool[spot_in_pool]["pages"].pin -= 1
 
         self.merge_lock.release()
         return record_list
@@ -174,7 +176,7 @@ class Table:
 
         self.bufferpool.pool[spot_in_pool]["pages"].dirty = True
         self.bufferpool.pool[spot_in_pool]["pages"].last_use = time()
-        self.bufferpool.pool[spot_in_pool]["pages"].pin = False
+        self.bufferpool.pool[spot_in_pool]["pages"].pin = 0
 
         return True
 
@@ -193,6 +195,19 @@ class Table:
 
         tid = page_range.new_tid(page)
         self.page_directory[rid]["tps"] = tid
+        # update indirection
+        if original:
+            self.bufferpool.pool[(page_range_id, page, True)]["pages"].pin += 1
+            self.bufferpool.pool[(page_range_id, page, True)]["pages"].pages[INDIRECTION_COLUMN].write(tid, row)
+            self.bufferpool.pool[(page_range_id, page, True)]["pages"].dirty = True
+            self.bufferpool.pool[(page_range_id, page, True)]["pages"].pin -= 1
+        else:
+            tail_page = page_range.tail_directory[old_rid].get("page")
+            tail_row = page_range.tail_directory[old_rid].get("row")
+            self.bufferpool.pool[(page_range_id, tail_page, False)]["pages"].pin += 1
+            self.bufferpool.pool[(page_range_id, tail_page, False)]["pages"].pages[INDIRECTION_COLUMN].write(tid, tail_row)
+            self.bufferpool.pool[(page_range_id, tail_page, False)]["pages"].dirty = True
+            self.bufferpool.pool[(page_range_id, tail_page, False)]["pages"].pin -= 1
         record = Record(tid, schema, new_cols[0], new_cols, False)
         record.base_rid = rid
         page = page_range.tail_directory[tid].get("page")
@@ -207,6 +222,9 @@ class Table:
 
         for i in range(len(record_list)):
             self.bufferpool.pool[spot_in_pool]["pages"].pages[i].write(record_list[i], row)
+
+        # update indirection
+
 
         self.index.indices[self.key].update_tree(record.columns[self.key], record_list[RID_COLUMN])
 

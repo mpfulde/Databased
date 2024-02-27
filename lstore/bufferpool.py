@@ -65,7 +65,6 @@ class Bufferpool:
             pass
 
         new_pages = PagesInPool()
-        new_pages.pinned = True
         # load basepages into pool
         base_pages, new = get_batch_from_folder(page_path, num_columns=num_columns)
         new_pages.pages = base_pages
@@ -135,7 +134,7 @@ class PagesInPool:
 
         self.pages = []
         self.dirty = False
-        self.pinned = False
+        self.pin = 0
         self.last_use = 0  # gives a timestamp of last used time
         self.pool_index = None
         self.path = None
