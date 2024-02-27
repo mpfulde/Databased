@@ -128,8 +128,10 @@ class Query:
         cols = list(columns)
 
         # try:
-        old_records = self.select(primary_key, self.table.key, [0])
-        latest_update = old_records[0]
+        old_records = self.table.get_records(primary_key, self.table.key)
+        latest_update = old_records[-1]
+        original_rid = old_records[0].rid
+        self.table.ready_to_merge(original_rid)
         new_schema = [int(x) for x in '{:0{size}b}'.format(latest_update.schema_encoding, size=len(cols))]
         updated_columns = latest_update.columns
         for i in range(len(cols)):

@@ -91,7 +91,7 @@ class Table:
         self.bufferpool = None
 
         self.merge_lock = threading.Lock()
-        self.merge_thread = threading.Thread(target=self.__merge)
+        self.merge_thread = None
         pass
 
     # does this one column at a time (will change later)
@@ -326,13 +326,27 @@ class Table:
         return records
 
     def ready_to_merge(self, rid):
-        page_range_id = self.page_directory[rid].get("page_range_id")
+        page_range_id = self.page_directory[rid].get("page_range")
         page_range = self.page_ranges[page_range_id]
-        if page_range.num_updates % NUM_UPDATES_TO_MERGE == 0:
+        if page_range.num_updates % NUM_UPDATES_TO_MERGE == 0 and page_range.num_updates != 0:
             # tells to start merging
+            self.merge_thread = threading.Thread(target=self.__merge)
             self.merge_thread.start()
 
     def __merge(self):
         self.merge_lock.acquire()
+        #step 1
+
+        #step2
+
+        #step 3
+
+        #step 4
+
+        #step 5
+
+        #step 6
+
         self.merge_lock.release()
+
         pass
