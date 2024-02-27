@@ -312,7 +312,7 @@ class Table:
         for i in range(len(self.page_ranges)):
             table_data[i] = self.page_ranges[i].to_json()
 
-        table_data_file = open(f"{self.path}/table_data.json", "w")
+        table_data_file = open(f"{self.path}/table_data.dat", "w")
         str_to_add = str(table_data)
         table_data_file.write(str_to_add)
         table_data_file.close()

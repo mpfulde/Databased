@@ -2,7 +2,6 @@ from lstore.table import Table, table_from_json
 from lstore.bufferpool import Bufferpool
 import pickle
 import os
-import json
 
 class Database:
 
@@ -25,9 +24,9 @@ class Database:
 
                 for name in tables_to_add:
 
-                    with open(f"{path}/{name}/table_data.json", "r") as metadata:
-                        table_json = metadata.read()
-                        table = table_from_json(table_json)
+                    with open(f"{path}/{name}/table_data.dat", "r") as metadata:
+                        table_data = metadata.read()
+                        table = table_from_json(table_data)
                     metadata.close()
 
                     with open(f"{path}/{name}/page_info.dat", "rb") as page_info:
