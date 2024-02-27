@@ -256,10 +256,6 @@ class Table:
 
     # clean up function so we dont lose memory
     def delete_table(self):
-        for page_range in self.page_ranges:
-            page_range.clear_data()
-            # page_range.TailPages.clear()
-
         self.page_ranges.clear()
         self.page_directory.clear()
 
@@ -280,6 +276,8 @@ class Table:
         # does not write any pages to files, that is handled by bufferpool.py
 
         self.merge_lock = None
+        if self.merge_thread is not None:
+            self.merge_thread.join()
         self.merge_thread = None
 
         if not os.path.exists(self.path):
@@ -331,34 +329,62 @@ class Table:
     def __merge(self):
         self.merge_lock.acquire()
 
-        self.bufferpool.commit_pool()  # ensure all data is up to date
 
         merge_queue = []  # tuple of baserid and latest tid
+        # determines what page range we are on (for example: if we are past the 16 page mark)
+        end_page_range = math.floor(len(self.page_directory) / (MAX_PAGES * RECORDS_PER_PAGE))
+        row_in_range = len(self.page_directory) % (MAX_PAGES * RECORDS_PER_PAGE)
+        end_page = math.floor(row_in_range / RECORDS_PER_PAGE)
+
         # generate a list of rids to merge
+        # only deals with full pages
         for key in self.page_directory:
+            if self.page_directory[key]["page_range"] == end_page_range and self.page_directory[key]["page"] == end_page:
+                # not a full page
+                break
             if self.page_directory[key]["tps"] != key:
                 merge_queue.append((key, self.page_directory[key].get("tps")))
 
-        # creates a bufferpool to exclusively work with merge, closed at the end
-        merge_bufferpool = Bufferpool(self.bufferpool.path)
-        merge_bufferpool.ignore_limit = True
-
-
         # step 1 only merge if there is stuff to merge
         if len(merge_queue) != 0:
+            # step 2
+            for merge in merge_queue:
+                page_range_id = self.page_directory[merge[0]].get("page_range")
+                page_range = self.page_ranges[page_range_id]
+                page = self.page_directory[merge[0]].get("page")
+                if not self.bufferpool.is_page_loaded(page_range_id, page, True):
+                    self.bufferpool.load_page_to_pool(self.path, page_range_id, self.num_columns, page, True)
+                bp_copy = self.bufferpool.pool[(page_range_id, page, True)]["pages"]
+
+                # merge_bufferpool.load_page_to_pool(self.path, page_range_id, self.num_columns, page, True)
+                tail_page = page_range.tail_directory[merge[1]].get("tail_page")
+                if not self.bufferpool.is_page_loaded(page_range_id, tail_page, False):
+                    self.bufferpool.load_page_to_pool(self.path, page_range_id, self.num_columns, tail_page, False)
+                tp_copy = self.bufferpool.pool[(page_range_id, tail_page, False)]["pages"]
+                row = self.page_directory[merge[0]].get("row")
+                tail_row = page_range.tail_directory[merge[1]].get("row")
+
+                # merging to latest version, step 3
+                bp_copy.pages[INDIRECTION_COLUMN].write(merge[0], row)
+
+                for i in range(BASE_RID_COLUMN, len(bp_copy.pages)):
+                    bp_copy.pages[i].write(tp_copy.pages[i].read(tail_row), row)
+
+                # bp_copy.new = True
+
+                # step 4
+                self.page_directory[merge[0]]["tid"] = merge[0]
+
+                # step 5
+                self.bufferpool.pool[(page_range_id, page, True)]["pages"] = bp_copy
+                self.bufferpool.pool[(page_range_id, page, True)]["pages"].dirty = True
+                self.bufferpool.pool[(page_range_id, page, True)]["pages"].last_use = time()
+                self.bufferpool.pool[(page_range_id, page, True)]["pages"].pin = False
+
             pass
-        # step 2
 
-        # step 3
 
-        # step 4
 
-        # step 5
-
-        # step 6
-
-        merge_bufferpool.close()
-        del merge_bufferpool
         self.merge_lock.release()
 
         pass

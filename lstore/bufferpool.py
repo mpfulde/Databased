@@ -11,18 +11,28 @@ def get_batch_from_folder(page_path, num_columns):
     # gets all metadata pages loaded
     pages = [Page("indirection"), Page("rid"), Page("base_rid"), Page("timestamp"), Page("schema_encoding")]
 
+    new = True
+
     for page in pages:
-        if os.path.exists(f"{page_path}/{page.name}.page"):
+        if os.path.exists(f"{page_path}/{page.name}.new.page") and new:
+            page.read_from_path(f"{page_path}/{page.name}.new.page")
+            new = new & True
+        elif os.path.exists(f"{page_path}/{page.name}.page"):
             page.read_from_path(f"{page_path}/{page.name}.page")
+            new = False
 
     for i in range(num_columns):
         page = Page(i)
-        if os.path.exists(f"{page_path}/column_{page.name}.page"):
+        if os.path.exists(f"{page_path}/column_{page.name}.new.page") and new:
+            page.read_from_path(f"{page_path}/column_{page.name}.new.page")
+            new = new & True
+        elif os.path.exists(f"{page_path}/column_{page.name}.page"):
             page.read_from_path(f"{page_path}/column_{page.name}.page")
+            new = False
 
         pages.append(page)
 
-    return pages
+    return pages, new
 
 
 class Bufferpool:
@@ -30,12 +40,12 @@ class Bufferpool:
         self.path = path
         self.pool = {}
         self.pages_in_pool = 0  #
-        self.ignore_limit = False # will only be set if its a bufferpool for merge
+        self.ignore_limit = False  # will only be set if its a bufferpool for merge
         pass
 
     # returns false if record is not in the pool
-    def is_page_loaded(self, page, page_range, is_base):
-        key = (page, page_range, is_base)
+    def is_page_loaded(self, page_range, page, is_base):
+        key = (page_range, page, is_base)
         if key in self.pool:
             return True
 
@@ -57,8 +67,9 @@ class Bufferpool:
         new_pages = PagesInPool()
         new_pages.pinned = True
         # load basepages into pool
-        base_pages = get_batch_from_folder(page_path, num_columns=num_columns)
+        base_pages, new = get_batch_from_folder(page_path, num_columns=num_columns)
         new_pages.pages = base_pages
+        new_pages.new = new
         new_pages.path = page_path
         new_pages.last_use = time.time()
         index = (page_range_id, page, is_base)
@@ -98,11 +109,19 @@ class Bufferpool:
 
         return True
 
+    def evict_index(self, index):
+        pages = self.pool[index]["pages"]
+        if pages.dirty:
+            pages.pool_to_file()
+
+        del self.pool[index]
+        self.pages_in_pool -= 1
+        return True
+
     def has_capacity(self):
         return self.pages_in_pool < MAX_BUFFERPOOL_PAGES
 
     def close(self):
-        self.commit_pool()
         while len(self.pool) > 0:
             self.evict()
 
@@ -120,6 +139,7 @@ class PagesInPool:
         self.last_use = 0  # gives a timestamp of last used time
         self.pool_index = None
         self.path = None
+        self.new = False
 
     # Name of metadata column or Column number
     def pool_to_file(self):
@@ -127,14 +147,16 @@ class PagesInPool:
         if not os.path.exists(self.path):
             os.mkdir(self.path)
 
+        new_path = ""
+
         successful_write = True
         for page in self.pages:
             if type(page.name) is int:
                 # example "ECS165/test1/0/BasePages/0/column_0.page
-                file_path = f"{self.path}/column_{page.name}.page"
+                file_path = f"{self.path}/column_{page.name}{new_path}.page"
             else:
                 # example "ECS165/test1/0/BasePages/0/rid.page
-                file_path = f"{self.path}/{page.name}.page"
+                file_path = f"{self.path}/{page.name}{new_path}.page"
 
             successful_write = successful_write and page.write_to_path(file_path)
 
