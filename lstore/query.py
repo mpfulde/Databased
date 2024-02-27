@@ -45,6 +45,10 @@ class Query:
         # converts columns to a list for ease of use
         cols = list(columns)
 
+        # no duplicate keys
+        if cols[self.table.key] in self.table.index.indices[self.table.key].value_tree:
+            return False
+
         if len(cols) > self.table.num_columns:
             print("trying to insert too many columns")
             return False
@@ -105,18 +109,20 @@ class Query:
 
             relative_version += 1
 
-        for i in range(len(projected_columns_index)):
-            if i >= len(record_list):
-                break
+        last_record = record_list[0]
 
-            projected_columns_index[i] = record_list[i]
+        for i in range(len(projected_columns_index)):
+            if projected_columns_index[i] == 0:
+                last_record.columns[i] = None
+
+        records = [last_record]
 
         # except Exception as e:
         #     print("Uh oh something went wrong")
         #     print(e)
         #     return False
 
-        return projected_columns_index
+        return records
 
     """
     # Update a record with specified key and columns
@@ -132,6 +138,10 @@ class Query:
         # try:
         old_records = self.table.get_records(primary_key, self.table.key)
         latest_update = old_records[-1]
+
+        # primary key cannot be updated (this implies there's a potential update)
+        if cols[self.table.key] is not None:
+            return False
 
         new_schema = [int(x) for x in '{:0{size}b}'.format(latest_update.schema_encoding, size=len(cols))]
         updated_columns = latest_update.columns
@@ -186,7 +196,7 @@ class Query:
         values = []
         for i in range(start_range, end_range + 1):
             try:
-                value = self.select_version(i, self.table.key, [0], relative_version)[0].columns[aggregate_column_index]
+                value = self.select_version(i, self.table.key, [1] * self.table.num_columns, relative_version)[0].columns[aggregate_column_index]
                 values.append(value)
             except Exception as e:
                 # print("value: ", i, " does not exist and will not be added to list")
