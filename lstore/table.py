@@ -5,16 +5,15 @@ import pickle
 import threading
 from time import time
 
+from lstore.bufferpool import Bufferpool
 from lstore.config import *
 from lstore.index import Index
 from lstore.page import PageRange
 
 
-
-
-
 def record_from_list(rlist, original):
-    record = Record(rlist[RID_COLUMN], rlist[SCHEMA_ENCODING_COLUMN], rlist[NO_METADATA], rlist[NO_METADATA:(len(rlist))], original)
+    record = Record(rlist[RID_COLUMN], rlist[SCHEMA_ENCODING_COLUMN], rlist[NO_METADATA],
+                    rlist[NO_METADATA:(len(rlist))], original)
     record.base_rid = rlist[BASE_RID_COLUMN]
     record.original = record.base_rid == record.rid
     record.timestamp = rlist[TIMESTAMP_COLUMN]
@@ -122,8 +121,6 @@ class Table:
         self.bufferpool.pool[spot_in_pool]["pages"].last_use = time()
         self.bufferpool.pool[spot_in_pool]["pages"].pin = False
 
-
-
         return True
 
     def read_record(self, rid_list):
@@ -180,7 +177,6 @@ class Table:
         self.bufferpool.pool[spot_in_pool]["pages"].last_use = time()
         self.bufferpool.pool[spot_in_pool]["pages"].pin = False
 
-
         return True
 
     def update_record(self, rid, schema, original, new_cols):
@@ -234,7 +230,6 @@ class Table:
 
         # gets the current page user is on
         page = math.floor(row_in_range / RECORDS_PER_PAGE)
-
 
         # gets the current row for the
         row = math.floor(row_in_range % RECORDS_PER_PAGE)
@@ -330,23 +325,40 @@ class Table:
         page_range = self.page_ranges[page_range_id]
         if page_range.num_updates % NUM_UPDATES_TO_MERGE == 0 and page_range.num_updates != 0:
             # tells to start merging
-            self.merge_thread = threading.Thread(target=self.__merge)
+            self.merge_thread = threading.Thread(target=self.__merge, daemon=True)
             self.merge_thread.start()
 
     def __merge(self):
         self.merge_lock.acquire()
-        #step 1
 
-        #step2
+        self.bufferpool.commit_pool()  # ensure all data is up to date
 
-        #step 3
+        merge_queue = []  # tuple of baserid and latest tid
+        # generate a list of rids to merge
+        for key in self.page_directory:
+            if self.page_directory[key]["tps"] != key:
+                merge_queue.append((key, self.page_directory[key].get("tps")))
 
-        #step 4
+        # creates a bufferpool to exclusively work with merge, closed at the end
+        merge_bufferpool = Bufferpool(self.bufferpool.path)
+        merge_bufferpool.ignore_limit = True
 
-        #step 5
 
-        #step 6
+        # step 1 only merge if there is stuff to merge
+        if len(merge_queue) != 0:
+            pass
+        # step 2
 
+        # step 3
+
+        # step 4
+
+        # step 5
+
+        # step 6
+
+        merge_bufferpool.close()
+        del merge_bufferpool
         self.merge_lock.release()
 
         pass

@@ -30,6 +30,7 @@ class Bufferpool:
         self.path = path
         self.pool = {}
         self.pages_in_pool = 0  #
+        self.ignore_limit = False # will only be set if its a bufferpool for merge
         pass
 
     # returns false if record is not in the pool
@@ -48,7 +49,7 @@ class Bufferpool:
             page_path = f"{page_range_path}/TailPages/{page}"
 
         # capactiy check
-        if not self.has_capacity():
+        if not self.has_capacity() and not self.ignore_limit:
             ## do work
             self.evict()
             pass
