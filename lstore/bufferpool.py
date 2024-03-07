@@ -2,6 +2,7 @@ import os
 from lstore.page import Page
 from lstore.config import *
 import time
+import threading
 
 PAGES_IN_POOL = 0
 
@@ -41,6 +42,7 @@ class Bufferpool:
         self.pool = {}
         self.pages_in_pool = 0  #
         self.ignore_limit = False  # will only be set if its a bufferpool for merge
+        self.pool_lock = threading.Lock()
         pass
 
     # returns false if record is not in the pool
@@ -52,6 +54,7 @@ class Bufferpool:
         return False
 
     def load_page_to_pool(self, path, page_range_id, num_columns, page, is_base):
+        self.pool_lock.acquire()
         page_range_path = f"{path}/{page_range_id}"
         if is_base:
             page_path = f"{page_range_path}/BasePages/{page}"
@@ -81,7 +84,7 @@ class Bufferpool:
         }
 
         self.pages_in_pool += 1
-
+        self.pool_lock.release()
         return index
 
     def commit_pool(self):
@@ -91,6 +94,7 @@ class Bufferpool:
                 self.pool[page]["pages"].dirty = False
 
     def evict(self):
+        self.pool_lock.acquire()
         # uses the lru eviction strategy
         oldest_use = self.pool[list(self.pool.keys())[0]]["pages"]
         oldest_index = list(self.pool.keys())[0]
@@ -105,7 +109,7 @@ class Bufferpool:
 
         del self.pool[oldest_index]
         self.pages_in_pool -= 1
-
+        self.pool_lock.release()
         return True
 
     def evict_index(self, index):
