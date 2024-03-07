@@ -10,8 +10,8 @@ class Transaction:
 
     def __init__(self):
         self.queries = []
-        self.lock_manager = LockManager()
         self.table = None
+        self.lock_list = {}
         pass
 
     """
@@ -40,56 +40,85 @@ class Transaction:
                 self.table = query.__self__.table
 
             key = args[0]  # will always give the record key (useful in keeping track of locks for specific records)
+            lock = self.lock_list.get(key)
             if query == query.__self__.select:
-                acquired = self.table.lock_manager.acquire_new_read(key)
-                if not acquired:
-                    return self.abort()
+                if lock is None:
+                    acquired = self.table.lock_manager.acquire_new_read(key)
+                    if not acquired:
+                        return self.abort()
+                    else:
+                        self.lock_list[key] = "read"
 
             elif query == query.__self__.sum:
-                acquired = self.table.lock_manager.acquire_new_read(key)
-                if not acquired:
-                    return self.abort()
+                if lock is None:
+                    acquired = self.table.lock_manager.acquire_new_read(key)
+                    if not acquired:
+                        return self.abort()
+                    else:
+                        self.lock_list[key] = "read"
 
             # checks if select and updating in the same transaction
             elif query == query.__self__.update:
-                if key not in self.table.lock_manager.locks:
+                if lock is None:
                     acquired = self.table.lock_manager.acquire_new_write(key)
                     if not acquired:
                         return self.abort()
-                elif self.table.lock_manager.locks[key].readers == 1:
+                    else:
+                        self.lock_list[key] = "write"
+                elif lock == "read":
                     self.table.lock_manager.locks[key].read_lock_release()
                     acquired = self.table.lock_manager.acquire_new_write(key)
                     if not acquired:
                         return self.abort()
+                    else:
+                        self.lock_list[key] = "write"
 
             # all other queries are write
             else:
-                acquired = self.table.lock_manager.acquire_new_write(key)
-                if not acquired:
-                    return self.abort()
+                if lock is None:
+                    acquired = self.table.lock_manager.acquire_new_write(key)
+                    if not acquired:
+                        return self.abort()
+                    else:
+                        self.lock_list[key] = "write"
+                elif lock == "read":
+                    self.table.lock_manager.locks[key].read_lock_release()
+                    acquired = self.table.lock_manager.acquire_new_write(key)
+                    if not acquired:
+                        return self.abort()
+                    else:
+                        self.lock_list[key] = "write"
 
-        # for query, args in self.queries:
+        for query, args in self.queries:
             result = query(*args)
             if result is False:
                 return self.abort()  # this code will probably never be reached
 
+            # insert will abort anyway if trying to do this
+            # if query == query.__self__.update:
+            #     try:
+            #         self.table.lock_manager.locks[key].write_lock_release()
+            #     except:
+            #         print("lol key")
+
         return self.commit()
 
     def abort(self):
-        for query, args in self.queries:
-            if self.table.name != query.__self__.table.name:
-                self.table = query.__self__.table
-
-            self.table.lock_manager.release_all_locks()
-
+        keys = list(self.lock_list.keys())
+        for key in keys:
+            if self.lock_list[key] == "read":
+                self.table.lock_manager.locks[key].read_lock_release()
+            elif self.lock_list[key] == "write":
+                self.table.lock_manager.locks[key].write_lock_release()
         return False
 
     def commit(self):
         # running this assumes its all working
-        for query, args in self.queries:
-            if self.table.name != query.__self__.table.name:
-                self.table = query.__self__.table
-
-            self.table.lock_manager.release_all_locks()
+        keys = list(self.lock_list.keys())
+        for key in keys:
+            if self.lock_list[key] == "read":
+                self.table.lock_manager.locks[key].read_lock_release()
+            elif self.lock_list[key] == "write":
+                self.table.lock_manager.locks[key].write_lock_release()
 
         return True

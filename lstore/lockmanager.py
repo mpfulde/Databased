@@ -77,17 +77,20 @@ class LockManager:
 
     def release_all_writers(self):
         for key in self.locks:
-            self.locks[key].read_lock_release()
+            self.locks[key].write_lock_release()
         pass
 
     def release_all_locks(self):
         self.release_all_reads()
         self.release_all_writers()
 
+
+    def clear_locks(self):
         key_list = list(self.locks.keys())
         for key in key_list:
             del self.locks[key]
 
+        pass
 
     def acquire_new_read(self, key):
 

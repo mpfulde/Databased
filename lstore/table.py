@@ -238,6 +238,7 @@ class Table:
         self.bufferpool.pool[spot_in_pool]["pages"].dirty = True
         self.bufferpool.pool[spot_in_pool]["pages"].last_use = time()
         self.bufferpool.pool[spot_in_pool]["pages"].pin = False
+
         self.merge_lock.release()
         return True
 
@@ -298,6 +299,8 @@ class Table:
 
     def write_to_files(self):
         # does not write any pages to files, that is handled by bufferpool.py
+
+        self.lock_manager.clear_locks()
 
         self.merge_lock = None
         if self.merge_thread is not None:
