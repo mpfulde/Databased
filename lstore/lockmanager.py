@@ -24,20 +24,16 @@ class TwoPL:
 
 class LockManager:
     def __init__(self):
-        self.read_list = []
-        self.write_list = []
+        self.read_list = {}
+        self.write_list = {}
         pass
 
-    def release_all_reads(self):
-        for lock in self.read_list:
+    def release_all_reads(self, locks):
+        for lock in self.read_list[locks]:
             lock.read_lock_release()
         pass
 
-    def release_all_writers(self):
-        for lock in self.write_list:
-            lock.write_lock_release()
+    def release_all_writers(self, locks):
+        for lock in self.write_list[locks]:
+            self.write_list[lock].write_lock_release()
         pass
-
-    def release_all_locks(self):
-        self.release_all_reads()
-        self.release_all_writers()
