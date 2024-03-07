@@ -128,6 +128,7 @@ class Bufferpool:
         while len(self.pool) > 0:
             self.evict()
 
+        self.pool_lock = None
         pass
 
 

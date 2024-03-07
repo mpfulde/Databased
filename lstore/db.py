@@ -48,15 +48,15 @@ class Database:
             table_list.write("\n".join(table.name for table in self.tables))
         table_list.close()
 
-
+        # cleans up all the dirty bits and ensures a clean closing of the tables
+        self.bufferpool.close()
 
         # writes all the table data to files
         for table in self.tables:
             table.write_to_files()
             self.drop_table(table.name)
 
-        # cleans up all the dirty bits and ensures a clean closing of the tables
-        self.bufferpool.close()
+
 
 
     """

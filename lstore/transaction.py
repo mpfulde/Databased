@@ -65,7 +65,7 @@ class Transaction:
         return self.commit()
 
     def abort(self):
-        for query in self.queries:
+        for query, args in self.queries:
             if self.table.name != query.__self__.table.name:
                 self.table = query.__self__.table
 
@@ -75,7 +75,7 @@ class Transaction:
 
     def commit(self):
         # running this assumes its all working
-        for query in self.queries:
+        for query, args in self.queries:
             if self.table.name != query.__self__.table.name:
                 self.table = query.__self__.table
 
