@@ -56,11 +56,10 @@ class Transaction:
                 if not acquired:
                     return self.abort()
 
-        # for query, args in self.queries:
+        for query, args in self.queries:
             result = query(*args)
             if result is False:
                 return self.abort()  # this code will probably never be reached
-
 
         return self.commit()
 

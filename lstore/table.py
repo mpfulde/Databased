@@ -96,6 +96,7 @@ class Table:
 
     # does this one column at a time (will change later)
     def write_record(self, record):
+        self.merge_lock.acquire()
         # grabs the current page range from the page range hashmap
         page_range_id = self.page_directory[record.rid].get("page_range")
         page = self.page_directory[record.rid].get("page")
@@ -110,8 +111,11 @@ class Table:
         record_list = record.create_list()
 
         # try:
+
         for i in range(len(record_list)):
             self.bufferpool.pool[spot_in_pool]["pages"].pages[i].write(record_list[i], row)
+
+            # if row % 2 == 1:
         # except Exception as e:
         #     print(e)
         #     return False
@@ -121,7 +125,7 @@ class Table:
         self.bufferpool.pool[spot_in_pool]["pages"].dirty = True
         self.bufferpool.pool[spot_in_pool]["pages"].last_use = time()
         self.bufferpool.pool[spot_in_pool]["pages"].pin -= 1
-
+        self.merge_lock.release()
         return True
 
     def read_record(self, rid_list):
@@ -160,6 +164,7 @@ class Table:
         return record_list
 
     def delete_record(self, rid, key):
+        self.merge_lock.acquire()
         page_range_id = self.page_directory[rid].get("page_range")
         page = self.page_directory[rid].get("page")
         row = self.page_directory[rid].get("row")
@@ -179,11 +184,11 @@ class Table:
         self.bufferpool.pool[spot_in_pool]["pages"].dirty = True
         self.bufferpool.pool[spot_in_pool]["pages"].last_use = time()
         self.bufferpool.pool[spot_in_pool]["pages"].pin = 0
-
+        self.merge_lock.release()
         return True
 
     def update_record(self, rid, schema, original, new_cols):
-
+        self.merge_lock.acquire()
         old_rid = rid
 
         if not original:
@@ -233,7 +238,7 @@ class Table:
         self.bufferpool.pool[spot_in_pool]["pages"].dirty = True
         self.bufferpool.pool[spot_in_pool]["pages"].last_use = time()
         self.bufferpool.pool[spot_in_pool]["pages"].pin = False
-
+        self.merge_lock.release()
         return True
 
     def new_rid(self):

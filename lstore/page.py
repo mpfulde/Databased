@@ -17,8 +17,8 @@ class Page:
         return self.num_records * NO_BYTES < 4096
 
     def write(self, value, row):
-        if not self.has_capacity():
-            return False
+        # if not self.has_capacity():
+        #     return False
 
         # print(value)
         if type(value) == bytes:
@@ -70,7 +70,7 @@ class Page:
             file.close()
 
         file = open(path, "wb")
-        for i in range(self.num_records):
+        for i in range(PAGE_SIZE):
             file.write(self.data)
         file.close()
 
