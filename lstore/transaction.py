@@ -50,13 +50,25 @@ class Transaction:
                 if not acquired:
                     return self.abort()
 
+            # checks if select and updating in the same transaction
+            elif query == query.__self__.update:
+                if key not in self.table.lock_manager.locks:
+                    acquired = self.table.lock_manager.acquire_new_write(key)
+                    if not acquired:
+                        return self.abort()
+                elif self.table.lock_manager.locks[key].readers == 1:
+                    self.table.lock_manager.locks[key].read_lock_release()
+                    acquired = self.table.lock_manager.acquire_new_write(key)
+                    if not acquired:
+                        return self.abort()
+
             # all other queries are write
             else:
                 acquired = self.table.lock_manager.acquire_new_write(key)
                 if not acquired:
                     return self.abort()
 
-        for query, args in self.queries:
+        # for query, args in self.queries:
             result = query(*args)
             if result is False:
                 return self.abort()  # this code will probably never be reached
