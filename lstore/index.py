@@ -2,6 +2,7 @@ import math
 
 from lstore.page import Page, PageRange
 from lstore.config import *
+import threading
 
 """
 A data strucutre holding indices for various columns of a table. Key column should be indexd by default, other columns can be indexed through this object. 
@@ -13,6 +14,7 @@ We opted to use a dictionary as the data structure for indices, its a little eas
 class Indices:
 
     def __init__(self, table, column):
+
         self.column = column
 
         self.value_tree = {} # test with dictionary
@@ -115,7 +117,8 @@ class Indices:
     def update_tree(self, value, rid):
         if value in self.value_tree:
             rid_list = self.value_tree[value].get("rid_list")
-            rid_list.append(rid)
+            if rid not in rid_list:
+                rid_list.append(rid)
             self.value_tree[value]["rid_list"] = rid_list
         else:
             self.value_tree[value] = {"rid_list": [rid]}
@@ -128,9 +131,11 @@ class Indices:
 class Index:
 
     def __init__(self, table):
+        self.index_lock = threading.Lock()
         # One index for each table. All our empty initially.
         self.table = table
         self.indices = [None] * table.num_columns
+
         pass
 
     """
@@ -140,8 +145,10 @@ class Index:
 
     def locate(self, column, value):
         # print(value)
+        self.index_lock.acquire()
         indice = self.indices[column]
         rids = indice.get_rids(value)
+        self.index_lock.release()
         return rids
 
     """
@@ -173,3 +180,9 @@ class Index:
     def drop_index(self, column_number):
         self.indices.pop(column_number)
         pass
+
+    def kill_lock(self):
+        self.index_lock = None
+
+    def reset_lock(self):
+        self.index_lock = threading.Lock()

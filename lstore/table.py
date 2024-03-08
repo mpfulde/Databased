@@ -128,40 +128,44 @@ class Table:
         self.merge_lock.release()
         return True
 
-    def read_record(self, rid_list):
+    def read_record(self, base_rid, version):
         self.merge_lock.acquire()
-        first_page_range_id = self.page_directory[rid_list[0]].get("page_range")
-        first_page_range = self.page_ranges[first_page_range_id]
-        record_list = []
-        for rid in rid_list:
 
-            if rid > self.num_records:  # ie if tail record
-                page_range = first_page_range_id
-                page = first_page_range.tail_directory[rid].get("page")
-                row = first_page_range.tail_directory[rid].get("row")
-                is_base = False
-                pass
-            else:
-                page_range = self.page_directory[rid].get("page_range")
-                page = self.page_directory[rid].get("page")
-                row = self.page_directory[rid].get("row")
-                is_base = True
+        page_range_id = self.page_directory[base_rid].get("page_range")
+        page = self.page_directory[base_rid].get("page")
+        row = self.page_directory[base_rid].get("row")
+        page_range = self.page_ranges[page_range_id]
 
-            if not self.bufferpool.is_page_loaded(page_range, page, is_base):
-                self.bufferpool.load_page_to_pool(self.path, page_range, self.num_columns, page, is_base)
+        updates = self.page_directory[base_rid].get("update_list")
 
-            spot_in_pool = (page_range, page, is_base)
-            self.bufferpool.pool[spot_in_pool]["pages"].pin += 1
-            record_as_list = []
-            for page in self.bufferpool.pool[spot_in_pool]["pages"].pages:
-                record_as_list.append(page.read(row))
+        if version == 0:
+            tid = self.page_directory[base_rid].get("tps")
+        elif abs(version) >= len(updates):
+            tid = base_rid
+        else:
+            tid = updates[version]
 
-            record = record_from_list(record_as_list, is_base)
-            record_list.append(record)
-            self.bufferpool.pool[spot_in_pool]["pages"].pin -= 1
+        record_as_list = [0] * (self.num_columns + NO_METADATA)
+        if base_rid == tid:
+            is_base = True
+        else:
+            is_base = False
+            page = page_range.tail_directory[tid].get("page")
+            row = page_range.tail_directory[tid].get("row")
+
+        if not self.bufferpool.is_page_loaded(page_range_id, page, is_base):
+            self.bufferpool.load_page_to_pool(self.path, page_range_id, self.num_columns, page, is_base)
+
+        spot_in_pool = (page_range_id, page, is_base)
+
+        for i in range(len(record_as_list)):
+            record_as_list[i] = self.bufferpool.pool[spot_in_pool]["pages"].pages[i].read(row)
+
+        record = record_from_list(record_as_list, is_base)
+        print(record.columns)
 
         self.merge_lock.release()
-        return record_list
+        return record
 
     def delete_record(self, rid, key):
         self.merge_lock.acquire()
@@ -187,57 +191,60 @@ class Table:
         self.merge_lock.release()
         return True
 
-    def update_record(self, rid, schema, original, new_cols):
+    def update_record(self, base_rid, schema, new_cols):
         self.merge_lock.acquire()
-        old_rid = rid
-
-        if not original:
-            rid = self.index.locate(self.key, new_cols[self.key])[0]
-
-        page_range_id = self.page_directory[rid].get("page_range")
-        page = self.page_directory[rid].get("page")
-        row = self.page_directory[rid].get("row")
-
+        page_range_id = self.page_directory[base_rid].get("page_range")
+        page = self.page_directory[base_rid].get("page")
+        row = self.page_directory[base_rid].get("row")
         page_range = self.page_ranges[page_range_id]
 
         tid = page_range.new_tid(page)
-        self.page_directory[rid]["tps"] = tid
+
+        prev_tid = self.page_directory[base_rid].get("tps")
+        self.page_directory[base_rid]["tps"] = tid
+        self.page_directory[base_rid]["update_list"].append(prev_tid)
+
         # update indirection
-        if original:
-            self.bufferpool.pool[(page_range_id, page, True)]["pages"].pin += 1
-            self.bufferpool.pool[(page_range_id, page, True)]["pages"].pages[INDIRECTION_COLUMN].write(tid, row)
-            self.bufferpool.pool[(page_range_id, page, True)]["pages"].dirty = True
-            self.bufferpool.pool[(page_range_id, page, True)]["pages"].pin -= 1
+        if prev_tid > self.num_records:  # i.e. tail record:
+            tail_page = page_range.tail_directory[prev_tid].get("page")
+            tail_row = page_range.tail_directory[prev_tid].get("row")
+            spot_in_pool = (page_range_id, tail_page, False)
+            if not self.bufferpool.is_page_loaded(page_range_id, page, False):
+                self.bufferpool.load_page_to_pool(self.path, page_range_id, self.num_columns, page, False)
+
+            self.bufferpool.pool[spot_in_pool]["pages"].pages[INDIRECTION_COLUMN].write(tid, tail_row)
         else:
-            tail_page = page_range.tail_directory[old_rid].get("page")
-            tail_row = page_range.tail_directory[old_rid].get("row")
-            self.bufferpool.pool[(page_range_id, tail_page, False)]["pages"].pin += 1
-            self.bufferpool.pool[(page_range_id, tail_page, False)]["pages"].pages[INDIRECTION_COLUMN].write(tid, tail_row)
-            self.bufferpool.pool[(page_range_id, tail_page, False)]["pages"].dirty = True
-            self.bufferpool.pool[(page_range_id, tail_page, False)]["pages"].pin -= 1
-        record = Record(tid, schema, new_cols[0], new_cols, False)
-        record.base_rid = rid
+            spot_in_pool = (page_range_id, page, True)
+            if not self.bufferpool.is_page_loaded(page_range_id, page, True):
+                self.bufferpool.load_page_to_pool(self.path, page_range_id, self.num_columns, page, True)
+
+            self.bufferpool.pool[spot_in_pool]["pages"].pages[INDIRECTION_COLUMN].write(tid, row)
+
+
         page = page_range.tail_directory[tid].get("page")
         row = page_range.tail_directory[tid].get("row")
-
+        spot_in_pool = (page_range_id, page, False)
         if not self.bufferpool.is_page_loaded(page_range_id, page, False):
             self.bufferpool.load_page_to_pool(self.path, page_range_id, self.num_columns, page, False)
 
-        spot_in_pool = (page_range_id, page, False)
+        self.bufferpool.pool[spot_in_pool]["pages"].pin += 1
 
+        record = Record(tid, schema, new_cols[0], new_cols, False)
+        record.base_rid = base_rid
         record_list = record.create_list()
 
+        # try:
         for i in range(len(record_list)):
             self.bufferpool.pool[spot_in_pool]["pages"].pages[i].write(record_list[i], row)
 
-        # update indirection
-
-
-        self.index.indices[self.key].update_tree(record.columns[self.key], record_list[RID_COLUMN])
-
+            # if row % 2 == 1:
+        # except Exception as e:
+        #     print(e)
+        #     return False
         self.bufferpool.pool[spot_in_pool]["pages"].dirty = True
         self.bufferpool.pool[spot_in_pool]["pages"].last_use = time()
-        self.bufferpool.pool[spot_in_pool]["pages"].pin = False
+        self.bufferpool.pool[spot_in_pool]["pages"].pin -= 1
+
 
         self.merge_lock.release()
         return True
@@ -269,7 +276,8 @@ class Table:
             'page_range': page_range_id,
             'row': row,
             'page': page,
-            'tps': rid
+            'tps': rid,
+            'update_list': []
         }
 
         return rid
@@ -288,13 +296,14 @@ class Table:
         self.page_ranges.append(PageRange(self.num_columns, f"{self.path}/{len(self.page_ranges)}"))
         pass
 
-    def get_records(self, search_key, index):
+    def get_records(self, search_key, index, version):
         if self.index.indices[index] is None:
             self.index.create_index(index)
 
         rid_list = self.index.locate(index, search_key)
 
-        record = self.read_record(rid_list)
+        record = [self.read_record(rid_list[0], version)]
+
         return record
 
     def write_to_files(self):
@@ -331,6 +340,7 @@ class Table:
         pickle.dump(self.page_directory, page_info)
         page_info.close()
 
+        self.index.kill_lock()
         index_data = open(f"{self.path}/index_data.dat", "wb")
         pickle.dump(self.index, index_data)
         index_data.close()

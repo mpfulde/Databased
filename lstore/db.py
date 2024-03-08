@@ -36,6 +36,7 @@ class Database:
                     with open(f"{path}/{name}/index_data.dat", "rb") as index_data:
                         table.index = pickle.load(index_data)
                     index_data.close()
+                    table.index.reset_lock()
 
                     self.tables.append(table)
 

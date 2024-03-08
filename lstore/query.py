@@ -98,7 +98,7 @@ class Query:
     def select_version(self, search_key, search_key_index, projected_columns_index, relative_version):
 
         # try:
-        record_list = self.table.get_records(search_key, search_key_index)
+        record_list = self.table.get_records(search_key, search_key_index, relative_version)
         record_list.reverse()
 
         if len(record_list) - 1 < -relative_version:
@@ -136,12 +136,15 @@ class Query:
         self.table.ready_to_merge()
 
         # try:
-        old_records = self.table.get_records(primary_key, self.table.key)
-        latest_update = old_records[-1]
 
         # primary key cannot be updated (this implies there's a potential update)
         if cols[self.table.key] is not None:
             return False
+
+        rid_list = self.table.index.locate(self.table.key, primary_key)
+        base_rid = rid_list[0]
+        latest_update = self.table.read_record(base_rid, 0)
+
 
         new_schema = [int(x) for x in '{:0{size}b}'.format(latest_update.schema_encoding, size=len(cols))]
         updated_columns = latest_update.columns
@@ -157,7 +160,7 @@ class Query:
         for bit in new_schema:
             schema = (schema << 1) | bit
 
-        self.table.update_record(latest_update.rid, schema,  latest_update.original, updated_columns)
+        self.table.update_record(base_rid, schema, updated_columns)
         # except Exception as e:
         #     print("Something went wrong – check exception")
         #     print(e)
