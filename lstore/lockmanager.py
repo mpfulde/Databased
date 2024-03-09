@@ -114,6 +114,12 @@ class LockManager:
 
         return True
 
+    def release_read_lock(self, key):
+        attempt = False
+        if key in self.locks.keys():
+            attempt = self.locks[key].read_lock_release()
+        return attempt
+
     def acquire_new_write(self, key):
 
         if key < 0:
@@ -136,3 +142,9 @@ class LockManager:
         self.locks[key] = new_lock
 
         return True
+
+    def release_write_lock(self, key):
+        attempt = False
+        if key in self.locks.keys():
+            attempt = self.locks[key].read_lock_release()
+        return attempt
