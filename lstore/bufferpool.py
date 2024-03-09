@@ -63,8 +63,11 @@ class Bufferpool:
 
         # capactiy check
         if not self.has_capacity() and not self.ignore_limit:
+            # will stop working unless we release lock before evicting
+            self.pool_lock.release()
             # do work
             self.evict()
+            self.pool_lock.acquire()
             pass
 
         new_pages = PagesInPool()
