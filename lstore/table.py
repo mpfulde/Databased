@@ -162,7 +162,6 @@ class Table:
             record_as_list[i] = self.bufferpool.pool[spot_in_pool]["pages"].pages[i].read(row)
 
         record = record_from_list(record_as_list, is_base)
-        print(record.columns)
 
         self.merge_lock.release()
         return record
@@ -220,7 +219,6 @@ class Table:
 
             self.bufferpool.pool[spot_in_pool]["pages"].pages[INDIRECTION_COLUMN].write(tid, row)
 
-
         page = page_range.tail_directory[tid].get("page")
         row = page_range.tail_directory[tid].get("row")
         spot_in_pool = (page_range_id, page, False)
@@ -245,12 +243,11 @@ class Table:
         self.bufferpool.pool[spot_in_pool]["pages"].last_use = time()
         self.bufferpool.pool[spot_in_pool]["pages"].pin -= 1
 
-
         self.merge_lock.release()
         return True
 
     def new_rid(self):
-
+        self.merge_lock.acquire()
         rid = self.num_records
         self.num_records += 1
 
@@ -280,6 +277,7 @@ class Table:
             'update_list': []
         }
 
+        self.merge_lock.release()
         return rid
 
     def get_rid_from_key(self, search_key, column):

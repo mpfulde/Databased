@@ -60,7 +60,8 @@ class Query:
             return False
 
         # try:
-        record = Record(self.table.new_rid(), schema_encoding, cols[0], cols, True)
+        rid = self.table.new_rid()
+        record = Record(rid, schema_encoding, cols[0], cols, True)
         self.table.write_record(record)
         # except Exception as e:
         #     print("Something went wrong, please see exception list")
