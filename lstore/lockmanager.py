@@ -1,12 +1,12 @@
 import threading
 
+
 # 2PL implementation
-class TwoPL:
+class ReadWriteLock:
     def __init__(self):
         self.lock = threading.Lock()
-        self.readers = 0 # count of current
+        self.readers = 0  # count of current
         self.writer = False
-
 
     def read_lock_acquire(self):
         self.lock.acquire()
@@ -65,7 +65,8 @@ class TwoPL:
         self.lock.release()
         return True
 
-class LockManager:
+
+class TwoPLLockManager:
     def __init__(self):
         self.locks = {}
         pass
@@ -84,7 +85,6 @@ class LockManager:
         self.release_all_reads()
         self.release_all_writers()
 
-
     def clear_locks(self):
         key_list = list(self.locks.keys())
         for key in key_list:
@@ -100,7 +100,7 @@ class LockManager:
         if key in self.locks:
             new_lock = self.locks[key]
         else:
-            new_lock = TwoPL()
+            new_lock = ReadWriteLock()
 
         try:
             attempt = new_lock.read_lock_acquire()
@@ -128,8 +128,7 @@ class LockManager:
         if key in self.locks:
             new_lock = self.locks[key]
         else:
-            new_lock = TwoPL()
-
+            new_lock = ReadWriteLock()
 
         try:
             attempt = new_lock.write_lock_acquire()

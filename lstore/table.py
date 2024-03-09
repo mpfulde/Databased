@@ -8,7 +8,7 @@ from time import time
 from lstore.config import *
 from lstore.index import Index
 from lstore.page import PageRange
-from lstore.lockmanager import LockManager
+from lstore.lockmanager import TwoPLLockManager
 
 
 def record_from_list(rlist, original):
@@ -88,7 +88,7 @@ class Table:
         self.page_directory = {}
         self.index = Index(self)
         self.bufferpool = None
-        self.lock_manager = LockManager()
+        self.lock_manager = TwoPLLockManager()
 
         self.merge_lock = threading.Lock()
         self.merge_thread = None
